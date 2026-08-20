@@ -287,7 +287,13 @@ A single unified layer. This is built **first among the real layers** — every 
 
 > **How does the fabric know which systems to trace?** It does not rely on a hard-coded “question → source” rule. During ingestion, the fabric builds an enterprise ontology and graph containing relationships such as **Capability → Application → Repository → Work Item → Meeting → Decision → SOP/Document → Incident**. Query understanding identifies entities, intent, time and scope in the user's question; graph/metadata relationships then provide candidate retrieval paths. The retrieval orchestrator combines those paths with vector and keyword search. This is what allows a question such as *“Why was the delivery promise logic changed for UAE last month?”* to discover Azure DevOps, Teams, incidents and design documents when those relationships exist.
 
-1. **Candidate generation** — keyword (BM25) + vector search run in parallel (hybrid). Each engine returns its own top-N candidates against the query; there is no separate graph search at this stage.
+0. **AI-driven query planning (pre-retrieval, agentic step)** — before any search engine runs, a lightweight LLM call inspects the incoming query and decides two things:
+   - **Which engine(s) to invoke** — vector only (semantic/paraphrase-heavy questions), keyword/BM25 only (exact terms, IDs, error codes, proper nouns), both in parallel (the default), or vector+graph (multi-hop "why/how did X change" questions where entity relationships matter). This is a **routing decision**, not a hardcoded rule — it uses the same entity/intent/time/scope understanding described above, just made explicit and inspectable rather than folded silently into "always run hybrid."
+   - **Whether to reframe the query** — expand abbreviations, resolve pronouns/context from conversation history, split a compound question into sub-queries, or rewrite a vague query into one better matched to how content is actually phrased in the corpus (HyDE-style rewrite is one option; query decomposition into 2-3 sub-queries is another for genuinely multi-part questions). Reframing is **logged alongside the original query** so retrieval remains explainable — the user-facing "why you're seeing this" block should show both the original and the reframed query when they differ.
+   - This step is itself governed by the same authz token (it must not leak query intent/entities across function boundaries) and the same prompt-injection posture as answer generation (§8.3) — the query planner reasons about the query, it does not execute instructions found inside retrieved content, and at this stage no content has been retrieved yet.
+   - **POC scope:** not built in Slice 1 (capture-only) or the initial retrieval slice; this is a Slice 2+ enhancement layered onto the fixed-hybrid baseline once basic retrieval is proven. See §19 open items for the specific design questions to resolve first.
+
+1. **Candidate generation** — keyword (BM25) + vector search run in parallel (hybrid), per the engine-selection decision in step 0 (POC default: always run both, i.e. step 0 is a no-op until built). Each engine returns its own top-N candidates against the (possibly reframed) query; there is no separate graph search at this stage.
 2. **Hard authorization pre-filter (mandatory gate)** — applied **before** ranking:
    ```text
    keep chunk IF
@@ -304,7 +310,7 @@ A single unified layer. This is built **first among the real layers** — every 
    - Net effect for a 10-related-dataset query: all 10 neighbors are *candidates*, but only the top-scoring, cap-respecting subset survives into context assembly — the other authorized-but-lower-relevance neighbors are dropped (not silently hidden for permission reasons — for relevance reasons, and this distinction is noted in the "why you're seeing this" transparency block).
 5. **Context assembly** — the final ranked list (fusion output + surviving graph expansions) is truncated to a **fixed context budget** (max chunk count and/or max token budget for the answer-gen LLM call), citations retained per chunk. This is the enforcement point for "minimal authorized chunk set" — budget enforcement, not just an aspiration.
 
-> **Tooling — Retrieval:** **pgvector + Postgres FTS** hybrid (managed alternatives: **Azure AI Search** / OpenSearch); **reciprocal-rank fusion (RRF)**; orchestrated with **LangChain**. **End-state:** cross-encoder **reranker** (Cohere / bge) and **graph traversal** (Cypher / Gremlin / GraphRAG) with the neighbor-cap + re-score policy above.
+> **Tooling — Retrieval:** **pgvector + Postgres FTS** hybrid (managed alternatives: **Azure AI Search** / OpenSearch); **reciprocal-rank fusion (RRF)**; orchestrated with **LangChain**. **End-state:** cross-encoder **reranker** (Cohere / bge), **graph traversal** (Cypher / Gremlin / GraphRAG) with the neighbor-cap + re-score policy above, and the **AI-driven query planning (step 0) + post-answer sufficiency loop (§8.3a)** described in this section.
 
 ### 8.2 Source-of-truth arbitration (Layer 3a)
 Arbitration runs on the **entire fused/ranked chunk set from §8.1**, every time — it is not gated on RRF producing a tie. It applies two distinct kinds of rule, in order:
@@ -321,6 +327,20 @@ Arbitration runs on the **entire fused/ranked chunk set from §8.1**, every time
 - RAG only — never fine-tuned on raw enterprise data.
 - Ingested content is treated as untrusted data; conflicting sources are shown, not resolved away. Prompt-injection defense is prompt-level in the POC; a dedicated content-safety tool (**Azure AI Content Safety / Rebuff / Llama Guard**) is end-state.
 
+### 8.3a Post-answer sufficiency check (agentic retrieval loop)
+
+After the LLM produces a candidate answer from the current chunk set, a second, targeted check runs **before** that answer is returned to the caller:
+
+- **Sufficiency judgment** — an LLM call (can be the same model, a cheaper/faster one, or a structured self-critique prompt on the same call) evaluates the draft answer against the original (and reframed, if applicable) query and asks: *does the retrieved context fully answer this, or is something missing — a sub-question unaddressed, a referenced entity never retrieved, an obvious multi-hop that stopped short?*
+- **If sufficient:** answer proceeds to the caller as normal (§8.4 step 9).
+- **If insufficient:** the loop triggers **one additional retrieval pass** — re-entering §8.1 with a refined/expanded query (informed by what the draft answer showed was missing), not a blind repeat of the same search. This is bounded, not open-ended:
+  - **Hard iteration cap** (e.g. max 1–2 extra passes) to bound latency and cost — this is an *agentic* loop, not an unbounded agent; it must terminate and return the best-available answer with an honest "could not fully verify" caveat if the cap is hit rather than looping indefinitely.
+  - Each additional pass still goes through the **same hard authorization pre-filter** (§8.1 step 2) — the sufficiency loop never bypasses authz to "try harder."
+  - The extra pass(es) and why they were triggered are logged to Audit (Layer 5) alongside the original query/answer, so this remains inspectable, not a silent retry.
+- **Relationship to arbitration/citations:** sufficiency checking is about *coverage* (did we retrieve enough), not *correctness* (is the retrieved content right) — arbitration (§8.2) and citation-grounding remain the mechanism for correctness; this step only asks "is anything obviously still missing."
+- **Open design questions (not yet resolved — see §19):** what specifically triggers "insufficient" (a structured rubric vs. free-form LLM judgment), how the iteration cap interacts with the latency target in §16, and whether this should also feed the not-yet-built RAG evaluation/scoring layer (§15) as a signal, rather than being a purely runtime decision with no persisted quality score.
+- **POC scope:** not built in Slice 1 (capture-only) or the initial retrieval slice — this is a Slice 2+ enhancement, same phase as the query-planning step in §8.1 step 0. Both should be designed together since they bracket the same retrieval call (planning before, sufficiency check after).
+
 ### 8.4 Query → answer sequence
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'lineColor':'#e11d48','primaryColor':'#1e3a5f','primaryTextColor':'#f8fafc','primaryBorderColor':'#93c5fd','secondaryColor':'#334155','tertiaryColor':'#334155','clusterBkg':'#0f172a','clusterBorder':'#64748b','edgeLabelBackground':'#1e293b','tertiaryTextColor':'#f8fafc','fontSize':'13px'}}}%%
@@ -328,30 +348,35 @@ flowchart TB
   C["Consumer (agent / app / user)"]
   API["Access API / MCP"]
   AZ["AuthZ (Foundation)"]
+  QP["Query planner (LLM): engine routing + reframe"]
   R["Retrieval (L2)"]
   G[("Vector + keyword stores")]
   GR[("Graph store (Apache AGE)")]
   ARB["Arbitration (L3)"]
   LLM["Answer Gen (L3)"]
+  SUFF{"Sufficiency check (LLM): fully answered?"}
   AUD[("Audit (L5)")]
 
   C -->|"1 · query + credentials"| API
   API -->|"2 · authenticate & request token"| AZ
   AZ -->|"3 · signed token (role, functions, ceiling, scopes)"| API
-  API -->|"4 · query + token"| R
-  R -->|"5 · hybrid candidate search"| G
+  API -->|"4 · query + token"| QP
+  QP -->|"4a · engine routing decision + reframed query (logged)"| R
+  R -->|"5 · hybrid candidate search (engine(s) per QP routing)"| G
   G -->|"6 · candidates + metadata"| R
   R -->|"7 · HARD authz filter before ranking, then fuse & rank (RRF)"| R
   R -.->|"7b · optional: 1-2 hop graph expansion, seeded from ranked chunks, permission-filtered, capped K neighbors/hop, re-scored not appended"| GR
   GR -.->|"7c · authorized, capped, re-scored neighbor chunks"| R
   R -->|"7d · final ranked + budget-truncated chunk set"| ARB
   ARB -->|"8 · ranked, arbitrated chunks + citations"| LLM
-  LLM -->|"9 · grounded answer + citations"| API
-  API -->|"10 · answer + transparency note (why you're seeing this)"| C
-  API -.->|"log · query, decision, sources, answer"| AUD
+  LLM -->|"9 · draft grounded answer + citations"| SUFF
+  SUFF -.->|"9a · insufficient (bounded retries, e.g. max 1-2): refined query"| R
+  SUFF -->|"9b · sufficient"| API
+  API -->|"10 · answer + transparency note (why you're seeing this, incl. reframe/routing/retry if any)"| C
+  API -.->|"log · query, reframe, routing, decision, sources, sufficiency verdict, answer"| AUD
 ```
 
-> **In words** (for viewers that don't render Mermaid): The **Consumer** sends *query + credentials* to the **API**. The API authenticates with **AuthZ** and gets back a **signed token** (role, functions, ceiling, scopes). It passes *query + token* to **Retrieval**, which runs a **hybrid candidate search** over the vector/keyword stores, then applies the **HARD authorization filter *before* ranking**, then fuses via RRF into one ranked list. **Optionally** (multi-hop questions only), Retrieval then seeds a **1–2 hop graph expansion in Apache AGE from the already-ranked chunks** — itself permission-filtered, capped to K neighbors per hop per anchor, and re-scored into the same ranking rather than appended raw — before truncating to a fixed context budget. Authorized, budget-truncated candidates go to **Arbitration**, which hands ranked, arbitrated chunks + citations to the **Answer-Gen LLM**. The LLM returns a **grounded answer + citations** to the API, which returns it to the Consumer with a *"why you're seeing this"* block — and logs the query, decision, sources, and answer to **Audit**.
+> **In words** (for viewers that don't render Mermaid): The **Consumer** sends *query + credentials* to the **API**. The API authenticates with **AuthZ** and gets back a **signed token** (role, functions, ceiling, scopes). It passes *query + token* to a **Query planner** step, which decides which search engine(s) to invoke and whether the query needs reframing (both logged for explainability) — **end-state only, not in the POC baseline (see §8.1 step 0)**. **Retrieval** runs the resulting **hybrid candidate search** over the vector/keyword stores, applies the **HARD authorization filter *before* ranking**, then fuses via RRF into one ranked list. **Optionally** (multi-hop questions only), Retrieval then seeds a **1–2 hop graph expansion in Apache AGE from the already-ranked chunks** — itself permission-filtered, capped to K neighbors per hop per anchor, and re-scored into the same ranking rather than appended raw — before truncating to a fixed context budget. Authorized, budget-truncated candidates go to **Arbitration**, which hands ranked, arbitrated chunks + citations to the **Answer-Gen LLM**, producing a **draft** answer. A **sufficiency check** (also end-state, §8.3a) evaluates whether the draft fully answers the (reframed) query; if not, it triggers a **bounded** (e.g. max 1–2) additional retrieval pass with a refined query, still subject to the same authz filter — otherwise the draft becomes final. The API returns the answer to the Consumer with a *"why you're seeing this"* block (now also covering any reframe/routing/retry) — and logs the full trail, including reframe/routing/sufficiency decisions, to **Audit**.
 
 ---
 
@@ -753,6 +778,7 @@ flowchart LR
 - **PII redaction:** **Microsoft Presidio** at ingestion — end-state.
 - **Immutable, complete audit:** every query, access decision, answer, and action logged to an **append-only PostgreSQL** trail (Layer 11), observed via **OpenTelemetry + Prometheus + Grafana + Loki**, with anomaly detection (custom rules) and red-team testing (custom / Microsoft **PyRIT**, deferred) before each function's launch. **POC = manual correction log only.**
 - **RAG evaluation:** **RAGAS** / Azure AI Evaluation for answer quality — end-state (choice deferred).
+- **⚠️ OPEN GAP — no per-response quality score exists yet, at any stage (POC or end-state).** There is currently no automated mechanism that scores/validates whether an individual response is "good" — groundedness, relevance, or otherwise. The POC's only quality signal is a **human-reviewed manual correction log** (per the bullet above); the RAGAS/Azure AI Evaluation line item is a **deferred, undecided** end-state choice, not a running system. This gap must be closed before Layer 2/3 (retrieval + answer generation) reaches any real user-facing rollout — flagged here explicitly so it isn't mistaken for "already handled" by the audit trail, which logs *that* an answer was given, not *whether* it was correct. See §19 for the specific open decision.
 - **Feedback governance:** corrections are captured, **reviewed, then promoted** to durable rules — a single bad correction cannot silently corrupt system-wide behavior.
 
 ---
@@ -827,6 +853,9 @@ The team agreed to evaluate three routes in parallel rather than committing to a
 3. **Red-team harness** — custom vs. Microsoft PyRIT (not decided yet).
 4. **Re-index SLAs** — acceptable staleness per store, and the priority-lane threshold for permission/tier changes.
 5. **Action approval thresholds** — per-class specifics (what counts as "bulk", which functions require a second approver).
+6. **⚠️ Per-response quality score — no design exists yet.** Flagged 2026-08-20. There is no mechanism, at POC or end-state, that produces a score/verdict for an individual response (groundedness, relevance, completeness). Today's only signal is the manual correction log (§15). Needs a decision on: what metric(s) (groundedness vs. answer-relevance vs. context-precision — RAGAS provides all three), whether scoring runs synchronously (blocks the response) or async (logged post-hoc for dashboards only), and whether it's the same mechanism as item 2 above or a separate lighter-weight runtime check distinct from periodic RAGAS batch evaluation.
+7. **AI-driven query planning (engine routing + query reframing) — design not started.** Flagged 2026-08-20, see §8.1 step 0. Open questions: what triggers reframing vs. passing the query through unchanged; how engine-routing decisions get logged/exposed in the "why you're seeing this" transparency block; whether routing is a discrete LLM call (added latency) or folded into a single combined planning+generation prompt; and how this interacts with query caching (a reframed query defeats a naive cache-by-raw-query-string strategy).
+8. **Post-answer sufficiency check (agentic retrieval loop) — design not started.** Flagged 2026-08-20, see §8.3a. Open questions: what specifically defines "insufficient" (structured rubric vs. free-form LLM self-critique), the iteration cap and how it interacts with the latency target (§16), whether a triggered extra pass should surface to the user as a visible "still searching" state or be fully transparent, and whether sufficiency verdicts should feed the (also not-yet-built) per-response quality score in item 6 as a signal rather than being a purely runtime, unlogged-for-quality-purposes decision.
 
 ---
 

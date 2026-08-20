@@ -253,3 +253,23 @@ system action or meaningful file/doc change, newest at the bottom.)*
   counting, and real task dispatch. `pytest`: 17 passed total (8 existing +
   9 new). — *Requirement: Phase 1.3 / unit-test lifecycle step per
   AGENTS.md.*
+
+- **[HLD design update — no code, docs only]** Per user request: (1) flagged
+  the absence of any per-response quality/scoring mechanism as an explicit
+  open gap in `Landmark_Enterprise_Knowledge_Fabric_HLD_Updated.md` §15 and
+  §19 (item 6) — previously only implicit in "RAGAS deferred", now called
+  out directly with a warning marker so it isn't mistaken for solved. (2)
+  Added AI-driven query planning (engine routing + query reframing) as HLD
+  §8.1 step 0 and as open item #7 in §19. (3) Added a post-answer
+  sufficiency check with a bounded iterative retrieval loop as new HLD
+  §8.3a and open item #8 in §19. (4) Updated the §8.4 query→answer sequence
+  diagram and prose to show both new steps in context. (5) Mirrored all of
+  this into `Landmark_Knowledgebase_Implementation_Plan.md`'s "Next slice"
+  section for Slice 2 (retrieval), including 6 explicit challenges/risks
+  (latency stacking, cost stacking, no persisted quality score yet,
+  reframing breaking naive caching, explainability surface area, and the
+  sufficiency check's own false-positive/negative risk). No implementation
+  work done — Slice 1 (capture, Phase 1.4 next) is unaffected and continues
+  as planned; this is design-ahead documentation only. — *Requirement: user
+  request to flag the scoring gap and pre-design agentic retrieval
+  behavior before Phase 1.4 implementation resumes.*

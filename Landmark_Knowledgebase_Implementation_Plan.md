@@ -237,3 +237,74 @@ Once Slice 1 (capture) is proven: Slice 2 = retrieval (hybrid BM25+vector,
 RRF fusion, FastAPI `/query` endpoint, grounded answer via GPT-5.5 mini) —
 matches HLD §8. Apache AGE graph store and real classification/RBAC to be
 scheduled as their own slices after that, per user's phased approach.
+
+**Slice 2 scope update (added 2026-08-20, per user request) — keep AI in
+the retrieval loop itself, not just as the final answer-generation step.**
+Two agentic additions to design and build alongside baseline retrieval, now
+also documented in `Landmark_Enterprise_Knowledge_Fabric_HLD_Updated.md`
+§8.1 step 0 and §8.3a:
+
+- **Pre-retrieval query planning (HLD §8.1 step 0).** Before candidate
+  generation runs, an LLM call decides (a) which engine(s) to invoke —
+  vector-only, keyword-only, hybrid (default), or vector+graph for
+  multi-hop questions — and (b) whether the query needs reframing
+  (expansion, pronoun/context resolution, decomposition into sub-queries).
+  Both the routing decision and any reframed query are logged and surfaced
+  in the "why you're seeing this" transparency block.
+- **Post-answer sufficiency check (HLD §8.3a).** After the answer-gen LLM
+  produces a draft, a second LLM check asks whether the retrieved context
+  actually covers the query fully. If not, it triggers **one bounded
+  additional retrieval pass** (hard iteration cap, e.g. max 1–2) with a
+  refined query — re-entering retrieval, still subject to the same
+  mandatory authz pre-filter — rather than looping indefinitely. Every
+  extra pass and its trigger reason is logged to audit.
+
+**Challenges / risks flagged now, before Slice 2 design starts in earnest:**
+1. **Latency stacking.** Query planning adds one LLM round-trip *before*
+   retrieval; the sufficiency check adds another *after* generation, and
+   each triggered retry adds a full extra retrieval+generation cycle. Three
+   to four sequential LLM calls per query (planner → answer-gen →
+   sufficiency → possible retry generation) is a real latency budget
+   problem against the "sub-second retrieval" non-functional target
+   (HLD §16) — that target was written for the hybrid search step alone,
+   not a multi-call agentic loop wrapped around it. Needs an explicit
+   updated latency target for the full agentic path before this is built,
+   or a fast/cheap model choice for the planner + sufficiency steps
+   specifically (separate from the answer-gen model).
+2. **Cost stacking.** Same shape as #1 but for spend — every query
+   potentially becomes 2-4 LLM calls instead of 1. Needs a per-query cost
+   budget decided alongside the latency target (ties into HLD §17 "cost
+   per query" POC evaluation criterion, and §18 evaluation criterion 7).
+3. **No persisted quality score yet (see HLD §15/§19 open gap, flagged
+   this session).** The sufficiency check is a *runtime* pass/fail
+   decision — it is not the same thing as an automated per-response
+   quality score (RAGAS/Azure AI Evaluation), which remains undecided and
+   unbuilt. Recommend deciding whether the sufficiency verdict should also
+   be persisted as a lightweight quality signal (even before RAGAS lands)
+   so retrieval quality is measurable over time, not just per-query
+   pass/fail with no aggregate view.
+4. **Reframing breaks naive caching.** If/when a query-result cache is
+   added (HLD §16 lists Redis caching as a latency lever), a reframed query
+   string no longer matches a cache keyed on the raw user query. Cache key
+   strategy needs to account for this (e.g. key on reframed query, or
+   cache at the chunk-candidate level rather than final-answer level).
+5. **Explainability surface area.** The existing "why you're seeing this"
+   transparency block (HLD §8.1 step 4, §8.4) now needs to communicate
+   three additional things without becoming noise: what engine(s) were
+   chosen and why, whether/how the query was reframed, and whether a retry
+   pass happened and why. Needs a concrete UI/API contract for this, not
+   just "log it" — logging alone (Audit, Layer 5) satisfies the audit
+   requirement but not the user-facing transparency requirement, which are
+   two different consumers of the same event.
+6. **Sufficiency-check false positives/negatives are themselves a new
+   failure mode.** A sufficiency check that's too lenient defeats its own
+   purpose (never triggers a retry, same as not having it); one that's too
+   strict burns the latency/cost budget in #1/#2 on every query. This
+   needs its own evaluation once built — which loops back to gap #3/HLD
+   §19 item 6 (no per-response scoring exists yet to validate the
+   sufficiency check's own accuracy against).
+
+No implementation started on any of this yet — Slice 1 (capture) continues
+as originally planned; this is design-ahead documentation only, per user
+request to capture it now before Phase 1.4 implementation resumes.
+
