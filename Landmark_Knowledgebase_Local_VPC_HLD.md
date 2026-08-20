@@ -67,11 +67,89 @@ real authz/RBAC, reranking, observability stack, CI/CD.
 Before designing our own pipeline, two open-source reference implementations
 were studied for patterns worth borrowing or explicitly deviating from:
 
-- **onyx-dot-app/onyx** — https://github.com/onyx-dot-app/onyx
+- **onyx-dot-app/onyx** — https://github.com/onyx-dot-app/onyx (mature,
+  production enterprise RAG platform — Python/FastAPI/Celery/Postgres/
+  OpenSearch/Redis/MinIO, Docker Compose + Kubernetes)
 - **semantica-agi/semantica** — https://github.com/semantica-agi/semantica
+  (Python KG/GraphRAG library, pluggable graph backends including Apache AGE)
 
-Findings and how they influenced our design: **[TO BE FILLED IN — pending
-research subagent results]**
+### 5.1 Patterns adopted from onyx
+
+- **Early-binding ACL filter, denormalized onto the chunk row.** Onyx computes
+  a flat ACL token set per user at query time (`user_email:<email>`,
+  `group:<name>`, etc. — a prefixed-string namespace to avoid collisions
+  across identity types) and stores the equivalent flattened list directly
+  on every **chunk** (not just the document) as a filterable field. The
+  search-engine query itself includes a hard boolean filter clause —
+  `public OR access_control_list overlaps user_acl` — evaluated *before*
+  scoring/ranking, never as an application-layer post-filter.
+  **Our adaptation (once real classification/RBAC lands, not in Slice 1):**
+  add a `functions text[]` (already in HLD schema) + a `chunk_acl_tokens
+  text[]` column with a **GIN index**, and express the authz gate as
+  `WHERE is_public OR chunk_acl_tokens && :user_acl_tokens` inside the same
+  SQL query that does the pgvector/FTS ranking — not a second query, not a
+  post-filter step. This matches the production HLD's "hard-filter before
+  ranking" rule exactly, just implemented as a Postgres array-overlap
+  instead of an OpenSearch filter clause.
+- **Multi-granularity chunking.** Onyx indexes "mini" (sub-chunk, precision),
+  "base" (normal), and "large" (recombined, full-document-context) chunks
+  simultaneously, and caps metadata-suffix injection at 25% of the token
+  budget so metadata never crowds out content. **Adopted for Slice 1's
+  chunker config** — cap metadata suffix percentage, keep chunk overlap
+  disabled for clean recombination (their stated reasoning: overlaps make
+  combining chunks back into "large chunks" ambiguous — matches our own
+  "chunk = atomic permission unit" rule, which wants clean non-overlapping
+  boundaries too).
+- **Separate embedding/model-serving process.** Onyx runs a standalone
+  `inference_model_server` microservice so API/worker processes never load
+  model weights themselves. **Not needed for Slice 1** (we call the remote
+  LiteLLM proxy, no local model weights to isolate) but worth remembering if
+  we ever run a local/self-hosted embedding model instead of LiteLLM.
+- **Connector interface shape.** Onyx's `BaseConnector`/`LoadConnector`
+  ABC (`load_credentials()`, checkpointed incremental poll, yields
+  `Document` objects containing `Section`s) is a reasonable interface to
+  imitate for our own folder-connector, even though onyx's own "file
+  connector" is upload-staging-oriented, not a live filesystem walker — we
+  still need to write our own directory-walking connector, just shaped like
+  their interface so a real SharePoint connector could swap in later.
+- **Not adopting:** OpenSearch, MinIO, Vespa — no need for a second
+  search/index engine when Postgres FTS + pgvector already covers hybrid
+  retrieval in one engine (this was itself a validating data point: onyx
+  moved OFF Vespa onto a combined vector+keyword engine, which is the same
+  "one engine, two retrieval modes" strategy our HLD already commits to).
+
+### 5.2 Patterns adopted from semantica (for the later, deferred graph-store slice)
+
+- **Apache AGE integration mechanics** — concrete, directly reusable
+  patterns for whenever we build the AGE slice:
+  - Idempotent connect: `CREATE EXTENSION IF NOT EXISTS age`, `LOAD 'age'`,
+    `SET search_path = ag_catalog,"$user",public`, create the named graph if
+    absent.
+  - AGE allows only **one label per vertex** — multi-label nodes must be
+    emulated via a `labels` property array, reconstructed on read.
+  - Keep **our own ID** in an app-level property (e.g. `chunk_id`/`entity_id`)
+    completely separate from AGE's own auto-generated internal vertex/edge
+    ID — never conflate the two.
+  - AGE's `cypher()` wrapper does **not** support `$param` binding — all
+    values must be escaped/whitelisted before interpolation into the Cypher
+    string (regex-restricted to alnum+underscore for labels/rel-types) —
+    a real injection-mitigation requirement, not optional hardening.
+- **RRF + alpha-blend fusion for graph+vector** — semantica's
+  `hybrid_alpha`-based blending between vector similarity and graph-hop
+  traversal results is a simple, provably-workable fusion strategy;
+  confirms our own planned RRF approach (HLD §8.1) is a reasonable target,
+  just extended with our own FTS rank as a third fusion input once AGE
+  lands.
+- **Not adopting / explicit gaps identified in semantica:** it has **no
+  real ACL/RBAC/multi-tenancy at all** (single shared API key only, no
+  per-node/per-document permission filtering) — confirms our own
+  authorization design (early-binding, chunk-level, per HLD §6) is not
+  something to borrow from this repo; we must build it ourselves regardless.
+  It also has no BM25/full-text fusion (only vector+metadata+graph) and
+  Celery is declared but never actually wired into their pipeline (uses an
+  in-process threaded DAG executor instead) — validates our own choice to
+  use real Celery+Redis rather than a lighter in-process alternative, since
+  we already need durable async processing for ingestion.
 
 ## 6. Local environment topology
 

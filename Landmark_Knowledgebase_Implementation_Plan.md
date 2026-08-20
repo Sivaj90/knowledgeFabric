@@ -26,9 +26,28 @@ real RBAC/classification, Next.js UI, observability, CI/CD.
 
 - `onyx-dot-app/onyx` and `semantica-agi/semantica` studied for connector
   abstraction, chunking, permission-aware retrieval, and (for semantica)
-  Apache AGE graph-store integration patterns.
-- Findings folded into design decisions below — **[pending final subagent
-  output; this section updated once research completes]**.
+  Apache AGE graph-store integration patterns. Full findings and rationale
+  in `Landmark_Knowledgebase_Local_VPC_HLD.md` §5. Concrete patterns folded
+  into the phases below:
+  - **Chunker config (Phase 1.4):** cap metadata-suffix injection at 25% of
+    token budget (onyx pattern); no chunk overlap, for clean recombination
+    and because it matches our "chunk = atomic permission unit" rule.
+  - **Data model (Phase 1.2):** add `is_public boolean` and
+    `chunk_acl_tokens text[]` (GIN-indexed) columns now, even though Slice 1
+    hardcodes every chunk as `internal`/non-public — so the later RBAC slice
+    is a filter-clause change, not a schema migration + rewrite.
+  - **Connector interface (Phase 1.3):** shape our folder connector's
+    interface like onyx's `BaseConnector`/`LoadConnector`
+    (`load_credentials()`, checkpointed poll, yields `Document` objects with
+    `Section`s) so a real SharePoint connector can swap in later without
+    changing downstream code.
+  - **Apache AGE mechanics (future graph-store slice, NOT Slice 1):**
+    semantica's concrete AGE patterns — idempotent
+    `CREATE EXTENSION IF NOT EXISTS age` + graph creation, one-label-per-
+    vertex constraint (multi-label via a `labels` array property), keep our
+    own IDs separate from AGE's internal IDs, and mandatory literal
+    escaping/whitelisting since AGE's `cypher()` wrapper has no `$param`
+    binding.
 
 ## Build sequence
 
@@ -58,6 +77,11 @@ real RBAC/classification, Next.js UI, observability, CI/CD.
       content, content_hash, embedding_id, functions[], classification_tier,
       effective_tier, owner, authors, project_ids, entities, timestamps,
       version, superseded_by)
+- [ ] Add `is_public boolean DEFAULT false` and `chunk_acl_tokens text[]`
+      (GIN-indexed) columns now (onyx-pattern early-binding ACL, see local
+      VPC HLD §5.1) — populate with a placeholder value for Slice 1 (e.g.
+      `is_public=false`, `chunk_acl_tokens={}`), wired for real use once
+      RBAC/classification is implemented in a later slice
 - [ ] pgvector column on chunks (or a separate vectors table — decide during
       implementation) sized to the embedding model's dimension
 - [ ] Postgres FTS index (tsvector column + GIN index) on chunk content
