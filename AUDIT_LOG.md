@@ -399,3 +399,42 @@ system action or meaningful file/doc change, newest at the bottom.)*
   break every time a new fixture file is added. Verified by running the
   full suite twice in a row: 41 passed both times, zero rows left in
   Postgres afterward.
+
+- **[Phase 1.7 complete: local deployment]** Added
+  deploy/systemd/kb-fabric-celery-worker.service (Postgres and Redis were
+  already native systemd services, enabled since Phase 1.0). Installed to
+  /etc/systemd/system/, daemon-reload'd, enabled, started. Deliberately
+  did NOT add Celery beat -- Slice 1 has no scheduled re-scan requirement
+  (ingestion is manual-trigger via python -m kb_fabric.run_ingest);
+  building an unused scheduler now would be ahead of an actual
+  requirement. Documented full start/stop/status/logs/survival-on-restart
+  commands in a new "Operating the local stack" section in the
+  implementation plan.
+- **[bug found + fixed, 5th of this project]** SELinux (Enforcing mode on
+  Oracle Linux 9) blocked the systemd-managed Celery worker from executing
+  at all -- confirmed via ausearch -m avc: avc: denied { execute } against
+  both the project venv's bin/ (labeled var_lib_t) and the underlying
+  uv-managed Python interpreter's bin/ (labeled data_home_t), neither of
+  which init_t (the systemd service domain) may execute. Fixed properly
+  via semanage fcontext -a -t bin_t <path> + restorecon -Rv on both paths
+  -- not by disabling SELinux enforcement, which would have been the
+  wrong fix for a system meant to run enterprise data. Verified live: the
+  systemd-managed worker (not a manually-foregrounded one, unlike every
+  prior phase's verification) received a real enqueued task, called the
+  real LiteLLM embeddings endpoint (HTTP 200), and wrote the chunk to
+  Postgres -- confirmed via journalctl. Also verified clean
+  start/stop/restart, and ran the full 41-test pytest suite with the
+  systemd worker running continuously in the background with no
+  interference. All three services (postgresql, redis,
+  kb-fabric-celery-worker) confirmed enabled -- will auto-start on the
+  next system startup without manual intervention.
+- **[AGENTS.md update blocked]** Attempted to update AGENTS.md's "Build /
+  test / run" section (previously marked TBD) with the now-real commands.
+  The write was blocked by a protected-file approval prompt that timed out
+  without a response -- per the tool's explicit instruction, did not retry
+  or route around it via another tool. AGENTS.md's Build/test/run section
+  therefore still reads TBD even though real commands now exist (see this
+  plan's Phase 1.7 section and "Operating the local stack" for the actual
+  commands) -- flagging this explicitly so it isn't mistaken for
+  forgotten; the user can approve/apply that edit directly whenever
+  convenient.

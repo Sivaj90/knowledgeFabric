@@ -22,3 +22,6 @@ data/processed/
 
 # Postgres local data dir if ever created here
 pgdata/
+
+# Runtime artifacts (Celery worker pidfile, systemd-managed at runtime)
+*.pid

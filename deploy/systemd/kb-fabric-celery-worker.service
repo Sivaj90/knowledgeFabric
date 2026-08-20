@@ -1,0 +1,44 @@
+[Unit]
+Description=Landmark Knowledge Fabric - Celery worker (Slice 1 capture pipeline)
+Documentation=file:///var/lib/aiprojects/knowledgebase/Landmark_Knowledgebase_Implementation_Plan.md
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=opc
+Group=opc
+WorkingDirectory=/var/lib/aiprojects/knowledgebase
+
+# EnvironmentFile loads .env directly -- same file kb_fabric.config reads
+# via python-dotenv, so there is exactly one place connection/config
+# values live, not two copies that can drift.
+EnvironmentFile=/var/lib/aiprojects/knowledgebase/.env
+
+ExecStart=/var/lib/aiprojects/knowledgebase/.venv/bin/celery -A kb_fabric.celery_app worker \
+    --loglevel=info \
+    --concurrency=2 \
+    --hostname=kb_fabric_worker@%%h \
+    --pidfile=/var/lib/aiprojects/knowledgebase/celery_worker.pid
+
+# Graceful shutdown: let in-flight tasks finish (matches HLD's "async
+# ingestion decoupled from query path" non-functional principle -- a
+# stopped worker should not corrupt a half-written document/chunk set).
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+Restart=on-failure
+RestartSec=5
+
+# Hardening (safe defaults for a native, non-containerized service).
+# NOTE: the project venv (.venv) uses `uv`-managed Python installed under
+# ~/.local/share/uv/ -- a symlink target outside WorkingDirectory -- so
+# ProtectHome must allow read access there (read-only, not "true"/full
+# hide) or the interpreter can't be exec'd at all.
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/var/lib/aiprojects/knowledgebase
+
+[Install]
+WantedBy=multi-user.target

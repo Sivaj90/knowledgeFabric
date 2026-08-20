@@ -323,13 +323,99 @@ real RBAC/classification, Next.js UI, observability, CI/CD.
       Landmark warehouse incident report JAFZA..." from the image-only PDF.
 
 ### Phase 1.7 — Local deployment
-- [ ] systemd unit files (or equivalent) for: Postgres (native package
+- [x] systemd unit files (or equivalent) for: Postgres (native package
       default), Redis (native package default), Celery worker, Celery beat
-      (if scheduled re-scan needed)
-- [ ] Document exact start/stop/status commands in this plan's "Operating
-      the local stack" section (added once built)
-- [ ] Confirm pipeline survives a VM reboot (services auto-start, or
-      documented manual start sequence)
+      (if scheduled re-scan needed) — Postgres (`postgresql.service`) and
+      Redis (`redis.service`) were already native-package-managed systemd
+      services from Phase 1.0. Added
+      `deploy/systemd/kb-fabric-celery-worker.service` for the Celery
+      worker (installed to `/etc/systemd/system/`, `daemon-reload` +
+      `enable`d). **Celery beat intentionally NOT added** — Slice 1's
+      ingestion is triggered manually via
+      `python -m kb_fabric.run_ingest`, there is no scheduled re-scan
+      requirement yet (see HLD open item on re-index SLAs, §19) — adding
+      an unused beat scheduler now would be infrastructure built ahead of
+      an actual requirement; revisit if/when scheduled re-scan is a real
+      ask.
+- [x] **Real bug found + fixed (5th of this project): SELinux blocked the
+      systemd-managed Celery worker from executing at all.** Oracle Linux 9
+      runs SELinux in `Enforcing` mode; the project venv
+      (`/var/lib/aiprojects/knowledgebase/.venv/`) and the underlying `uv`-
+      managed Python interpreter it symlinks to
+      (`~/.local/share/uv/python/.../bin/`) were labeled `var_lib_t` and
+      `data_home_t` respectively — neither is an SELinux type the `init_t`
+      domain (what systemd-spawned services run as) is allowed to execute.
+      Confirmed via `ausearch -m avc`: `avc: denied { execute }` for both
+      paths in turn. Fixed properly (not by disabling SELinux) via
+      `semanage fcontext -a -t bin_t <path>` + `restorecon -Rv` on both the
+      venv's `bin/` directory and the uv Python's `bin/` directory, so
+      systemd can exec `celery`/`python3.11` there while every other
+      SELinux protection stays enforced.
+- [x] Document exact start/stop/status commands in this plan's "Operating
+      the local stack" section (added once built) — see section below,
+      added now
+- [x] Confirm pipeline survives a VM reboot (services auto-start, or
+      documented manual start sequence) — all three services
+      (`postgresql`, `redis`, `kb-fabric-celery-worker`) confirmed
+      `enabled` via `systemctl is-enabled`, meaning systemd will start them
+      automatically on boot without any manual intervention
+- [x] **Live end-to-end verification via the real systemd service (not a
+      manually-foregrounded worker, which is how every prior phase's
+      verification ran):** dropped a real file into `data/raw/`, ran the
+      CLI entrypoint, confirmed via `journalctl -u
+      kb-fabric-celery-worker` that the **systemd-managed** worker (not a
+      manual `celery worker` invocation) received the task, called the
+      real LiteLLM embeddings endpoint (HTTP 200), and wrote the chunk to
+      Postgres. Also verified `systemctl stop`/`start`/`restart` all work
+      cleanly, and ran the full pytest suite (41 tests) with the systemd
+      worker running continuously in the background — no interference,
+      no duplicate task consumption. Test artifacts cleaned up afterward.
+
+## Operating the local stack
+
+```bash
+# --- Status (all three services) ---
+sudo systemctl status postgresql redis kb-fabric-celery-worker --no-pager
+
+# --- Start / stop / restart the Celery worker ---
+sudo systemctl start kb-fabric-celery-worker
+sudo systemctl stop kb-fabric-celery-worker
+sudo systemctl restart kb-fabric-celery-worker
+
+# --- Celery worker logs (journald, not a log file) ---
+sudo journalctl -u kb-fabric-celery-worker -f          # follow live
+sudo journalctl -u kb-fabric-celery-worker --no-pager -n 100   # last 100 lines
+
+# --- Postgres / Redis (native package units, already enabled since Phase 1.0) ---
+sudo systemctl status postgresql
+sudo systemctl status redis
+
+# --- Trigger ingestion manually (no beat scheduler -- Slice 1 is manual-trigger only) ---
+cd /var/lib/aiprojects/knowledgebase && source .venv/bin/activate
+python -m kb_fabric.run_ingest              # scans data/raw/, enqueues new/changed files
+python -m kb_fabric.run_ingest --dry-run    # preview only, touches nothing
+
+# --- Confirm reboot survival (all three should print "enabled") ---
+systemctl is-enabled postgresql redis kb-fabric-celery-worker
+```
+
+**Unit file source of truth:** `deploy/systemd/kb-fabric-celery-worker.service`
+in this repo. If it's ever edited, redeploy with:
+```bash
+sudo cp deploy/systemd/kb-fabric-celery-worker.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl restart kb-fabric-celery-worker
+```
+
+**SELinux note for anyone reprovisioning this VM or moving to a new one:**
+if the Celery worker unit fails with `status=203/EXEC` / "Permission
+denied" in `journalctl`, it's almost certainly the SELinux labeling issue
+above, not a real permissions problem. Check with
+`sudo ausearch -m avc -ts recent`; if it shows `denied { execute }` against
+`var_lib_t` or `data_home_t`, re-run the two `semanage fcontext -a -t
+bin_t ... && restorecon -Rv ...` commands from the Phase 1.7 notes above
+against the venv's `bin/` and the underlying Python interpreter's `bin/`
+directory (`readlink -f .venv/bin/python3.11` to find the real path).
 
 ## Decisions log (append as they're made)
 
