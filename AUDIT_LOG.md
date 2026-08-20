@@ -117,3 +117,40 @@ system action or meaningful file/doc change, newest at the bottom.)*
   confirmed present on GitHub via `gh api repos/.../contents/` listing.
   `origin` remote now tracks `main`. — *Requirement: user wants the repo
   accessible from outside this VPC.*
+
+- **[provisioning]** Installed local stack packages via `sudo dnf`:
+  - `python3.11`, `python3.11-pip`, `python3.11-devel` (system Python 3.9
+    too old for LangChain/pgvector-client/Unstructured.io)
+  - PostgreSQL 16 (`dnf module enable postgresql:16`, then
+    `postgresql-server` + `postgresql-contrib`) — chosen over default
+    non-module PG13 to match HLD's committed PostgreSQL 16
+  - `pgvector` (0.6.2, from Oracle Linux appstream, not source-compiled)
+  - `redis` (6.2.22)
+  All via `sudo dnf install -y <pkg>` — no manual repo config needed, all
+  packages came from Oracle Linux's own appstream/module repos.
+
+- **[provisioning]** Initialized and started services:
+  - `sudo postgresql-setup --initdb` — created `/var/lib/pgsql/data`
+  - `sudo systemctl enable --now postgresql` and `redis` — both `active` +
+    `enabled` (survive reboot)
+  - Created Postgres role `kb_fabric` (password auth) and database
+    `kb_fabric` owned by that role
+  - `CREATE EXTENSION vector;` in `kb_fabric` DB — confirmed pgvector 0.6.2
+    active (`\dx` shows ivfflat + hnsw access methods available)
+  - **Modified `/var/lib/pgsql/data/pg_hba.conf`** (backed up first as
+    `pg_hba.conf.bak`): changed TCP loopback auth (127.0.0.1/32, ::1/128)
+    from `ident` to `scram-sha-256` so the app can connect with
+    username/password over TCP, not just Unix-socket `peer` auth. Unix
+    socket / replication auth left untouched. Reloaded postgresql to apply.
+    Verified: `psql -h 127.0.0.1 -U kb_fabric -d kb_fabric` succeeds with
+    password auth.
+  - **Local dev credential note:** role password is `kb_fabric_local_dev`
+    — a plaintext local-only dev password, intentionally simple since this
+    is a sandboxed local VPC POC with no external network exposure; NOT
+    suitable if this environment is ever exposed beyond localhost.
+
+- **[provisioning]** Created Python 3.11 virtualenv at
+  `/var/lib/aiprojects/knowledgebase/.venv` (`python3.11 -m venv .venv`).
+  Confirmed Python 3.11.15 + pip 24.0 inside the venv. No packages
+  installed into it yet (next: requirements.txt / pyproject.toml per
+  implementation plan Phase 1.1).

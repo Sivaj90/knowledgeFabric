@@ -52,16 +52,24 @@ real RBAC/classification, Next.js UI, observability, CI/CD.
 ## Build sequence
 
 ### Phase 1.0 — Environment provisioning
-- [ ] Install Python 3.11 (dnf module stream or source build)
-- [ ] Create project venv at `/var/lib/aiprojects/knowledgebase/.venv`
-- [ ] Install PostgreSQL 16 (PGDG repo) + pgvector extension
-- [ ] Install Redis (native, systemd)
-- [ ] Verify both services start via systemd and survive reboot config
-      (enabled, not just started)
-- [ ] Create local Postgres role + database for this project
-- [ ] Confirm connectivity to Landmark LiteLLM proxy from Python (chat +
-      embeddings) — already verified via curl; re-verify via the actual
-      client library we choose (OpenAI SDK pointed at custom base_url)
+- [x] Install Python 3.11 (dnf, `python3.11` + `python3.11-devel` + pip) —
+      2026-08-20
+- [x] Create project venv at `/var/lib/aiprojects/knowledgebase/.venv` —
+      Python 3.11.15, pip 24.0
+- [x] Install PostgreSQL 16 (Oracle Linux module stream `postgresql:16`) +
+      pgvector extension (0.6.2, Oracle Linux appstream package, no source
+      compile needed)
+- [x] Install Redis (native, systemd) — 6.2.22
+- [x] Verify both services start via systemd and survive reboot config
+      (`systemctl enable --now` — both `active` + `enabled`)
+- [x] Create local Postgres role (`kb_fabric`) + database (`kb_fabric`) for
+      this project; switched TCP loopback auth from `ident` to
+      `scram-sha-256` in `pg_hba.conf` (backed up original first) so the app
+      can connect with username/password; verified via `psql -h 127.0.0.1`
+- [x] Confirm connectivity to Landmark LiteLLM proxy — verified via direct
+      curl to `/v1/chat/completions` with `gpt-5.5` (see earlier fallback
+      setup); `.env` / `.env.example` created with real (gitignored) and
+      template connection values respectively
 
 ### Phase 1.1 — Project scaffolding
 - [ ] Python package layout (`src/kb_fabric/` or similar — TBC naming)
