@@ -251,13 +251,38 @@ also documented in `Landmark_Enterprise_Knowledge_Fabric_HLD_Updated.md`
   (expansion, pronoun/context resolution, decomposition into sub-queries).
   Both the routing decision and any reframed query are logged and surfaced
   in the "why you're seeing this" transparency block.
-- **Post-answer sufficiency check (HLD §8.3a).** After the answer-gen LLM
-  produces a draft, a second LLM check asks whether the retrieved context
-  actually covers the query fully. If not, it triggers **one bounded
-  additional retrieval pass** (hard iteration cap, e.g. max 1–2) with a
-  refined query — re-entering retrieval, still subject to the same
-  mandatory authz pre-filter — rather than looping indefinitely. Every
-  extra pass and its trigger reason is logged to audit.
+- **Post-answer sufficiency check with a scored, configurable retry loop
+  (HLD §8.3a — mechanism now resolved, not just flagged).** After the
+  answer-gen LLM produces a draft, a structured LLM call scores it on two
+  dimensions — `coverage_score` (did retrieval get enough) and
+  `groundedness_score` (is the answer actually supported by cited chunks)
+  — each 0.0-1.0, returned as JSON, not free-form judgment. If either score
+  falls below its configured threshold (POC defaults: coverage 0.7,
+  groundedness 0.8), the loop re-enters retrieval with a suggested refined
+  query, up to a **configurable `max_retrieval_loops`** (POC default: 1
+  extra pass; per-function overridable at end-state, same governance
+  pattern as arbitration rules — a knowledge owner sets it, every change
+  audited). If the cap is hit without reaching threshold, the
+  **best-scoring pass so far** is returned with an explicit "could not
+  fully verify" caveat — never silently returned as if fully verified,
+  never looped indefinitely. Both scores are **persisted to Audit for every
+  query**, which is also the resolution to the previously-flagged "no
+  per-response quality score exists" gap — this score uses the same metric
+  vocabulary as RAGAS (`coverage_score` ≈ RAGAS `context_precision`/
+  `context_recall`, `groundedness_score` ≈ RAGAS `faithfulness`), so the
+  cheap synchronous runtime score and the heavier periodic RAGAS/Azure AI
+  Evaluation batch layer are complementary, not two competing choices.
+
+**Configuration surface (new, POC defaults — lives alongside arbitration
+rules / `project_grants` / action-approval thresholds as one per-function
+config surface, not a separate system):**
+
+| Setting | POC default | Purpose |
+|---|---|---|
+| `coverage_threshold` | 0.7 | Below this → trigger retry |
+| `groundedness_threshold` | 0.8 | Below this → trigger retry (weighted higher: ungrounded is worse than incomplete) |
+| `max_retrieval_loops` | 1 | Hard cap on extra retrieval passes; 0 disables the loop (today's single-pass behavior) |
+| `sufficiency_model` | same as answer-gen model | May switch to a cheaper/faster model at end-state, see challenge #1 below |
 
 **Challenges / risks flagged now, before Slice 2 design starts in earnest:**
 1. **Latency stacking.** Query planning adds one LLM round-trip *before*
@@ -275,14 +300,12 @@ also documented in `Landmark_Enterprise_Knowledge_Fabric_HLD_Updated.md`
    potentially becomes 2-4 LLM calls instead of 1. Needs a per-query cost
    budget decided alongside the latency target (ties into HLD §17 "cost
    per query" POC evaluation criterion, and §18 evaluation criterion 7).
-3. **No persisted quality score yet (see HLD §15/§19 open gap, flagged
-   this session).** The sufficiency check is a *runtime* pass/fail
-   decision — it is not the same thing as an automated per-response
-   quality score (RAGAS/Azure AI Evaluation), which remains undecided and
-   unbuilt. Recommend deciding whether the sufficiency verdict should also
-   be persisted as a lightweight quality signal (even before RAGAS lands)
-   so retrieval quality is measurable over time, not just per-query
-   pass/fail with no aggregate view.
+3. **Quality score now defined, calibration still TBD.** The sufficiency
+   check (coverage/groundedness, 0.0-1.0, see above) **is** the per-response
+   quality score — the earlier-flagged "no scoring mechanism exists" gap is
+   resolved in the HLD. What remains open: the POC thresholds (0.7/0.8) are
+   reasoned starting points, not measured against real usage yet, and will
+   need per-function tuning once Slice 2 has real query traffic to look at.
 4. **Reframing breaks naive caching.** If/when a query-result cache is
    added (HLD §16 lists Redis caching as a latency lever), a reframed query
    string no longer matches a cache keyed on the raw user query. Cache key
@@ -299,10 +322,11 @@ also documented in `Landmark_Enterprise_Knowledge_Fabric_HLD_Updated.md`
 6. **Sufficiency-check false positives/negatives are themselves a new
    failure mode.** A sufficiency check that's too lenient defeats its own
    purpose (never triggers a retry, same as not having it); one that's too
-   strict burns the latency/cost budget in #1/#2 on every query. This
-   needs its own evaluation once built — which loops back to gap #3/HLD
-   §19 item 6 (no per-response scoring exists yet to validate the
-   sufficiency check's own accuracy against).
+   strict burns the latency/cost budget in #1/#2 on every query. The
+   0.7/0.8 POC defaults need validating against real usage once Slice 2 is
+   live — this is exactly what the periodic RAGAS/Azure AI Evaluation batch
+   layer (HLD §15) is for: auditing whether the cheap synchronous score is
+   itself well-calibrated.
 
 No implementation started on any of this yet — Slice 1 (capture) continues
 as originally planned; this is design-ahead documentation only, per user

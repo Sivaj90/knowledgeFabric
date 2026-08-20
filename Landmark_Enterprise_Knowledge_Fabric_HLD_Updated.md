@@ -331,14 +331,36 @@ Arbitration runs on the **entire fused/ranked chunk set from §8.1**, every time
 
 After the LLM produces a candidate answer from the current chunk set, a second, targeted check runs **before** that answer is returned to the caller:
 
-- **Sufficiency judgment** — an LLM call (can be the same model, a cheaper/faster one, or a structured self-critique prompt on the same call) evaluates the draft answer against the original (and reframed, if applicable) query and asks: *does the retrieved context fully answer this, or is something missing — a sub-question unaddressed, a referenced entity never retrieved, an obvious multi-hop that stopped short?*
-- **If sufficient:** answer proceeds to the caller as normal (§8.4 step 9).
-- **If insufficient:** the loop triggers **one additional retrieval pass** — re-entering §8.1 with a refined/expanded query (informed by what the draft answer showed was missing), not a blind repeat of the same search. This is bounded, not open-ended:
-  - **Hard iteration cap** (e.g. max 1–2 extra passes) to bound latency and cost — this is an *agentic* loop, not an unbounded agent; it must terminate and return the best-available answer with an honest "could not fully verify" caveat if the cap is hit rather than looping indefinitely.
+- **Sufficiency judgment — concrete scoring mechanism (resolves the "what triggers insufficient" open question).** The check is a **structured rubric scored by an LLM call**, not free-form judgment — it must return a machine-parseable JSON verdict, not prose, so the loop can act on it deterministically:
+  ```json
+  {
+    "coverage_score": 0.0,        // 0.0-1.0: how fully the retrieved context addresses the query
+    "groundedness_score": 0.0,    // 0.0-1.0: how well the draft answer is supported by cited chunks (no unsupported claims)
+    "missing_aspects": ["..."],   // short strings naming what's unaddressed, e.g. "no UAE-specific incident found"
+    "verdict": "sufficient | insufficient",
+    "suggested_refinement": "..." // null if sufficient; else a refined/expanded query for the next pass
+  }
+  ```
+  - **`verdict = insufficient`** if either `coverage_score` or `groundedness_score` falls below a **configurable threshold** (see config table below) — two scores, not one, because coverage (did we retrieve enough) and groundedness (is the answer actually supported by what we retrieved) are different failure modes and should be distinguishable in logs/metrics, not conflated into a single number.
+  - This is the **same score shape RAGAS produces** (`context_precision`/`context_recall` ≈ our `coverage_score`, `faithfulness` ≈ our `groundedness_score`) — deliberately chosen so the runtime check and the periodic batch RAG-evaluation layer (§15) can share one scoring vocabulary instead of inventing two incompatible ones. This directly answers the §19 item 6 question ("is this the same mechanism as RAGAS or separate") — **it is the same metric family, computed two ways**: this section computes it synchronously per-query at low cost (single LLM judgment) for the runtime loop-control decision; §15's RAGAS/Azure AI Evaluation computes the same metric family in a heavier, periodic, batch-evaluated way (against held-out labeled question sets) for aggregate quality tracking and model/prompt regression testing. They are not competing choices — the runtime score is the cheap online signal, RAGAS is the expensive offline audit of that signal's own accuracy.
+  - **Both scores are persisted**, not just used transiently to decide retry/no-retry — written to the Audit trail (Layer 5) per query, so retrieval quality becomes a trackable time series (mean coverage/groundedness per function, per week) rather than a single-query pass/fail with no aggregate view. This closes the §19 item 6 / earlier-flagged gap: there is now **a per-response score**, even ahead of RAGAS landing — RAGAS becomes the tool that later validates whether *this* score is itself well-calibrated, not the only source of scoring.
+- **If sufficient:** answer proceeds to the caller as normal (§8.4 step 9), scores logged.
+- **If insufficient:** the loop triggers an additional retrieval pass — re-entering §8.1 with `suggested_refinement` as the next query (informed by what the draft answer showed was missing via `missing_aspects`), not a blind repeat of the same search. This is bounded, not open-ended:
+  - **Configurable iteration cap (resolves the "how many loops" open question)** — a per-function config value `max_retrieval_loops` (see table below), not a hardcoded constant, since different functions have different latency/cost tolerance (an operational-investigation query tolerates more looping than a quick lookup). Default `max_retrieval_loops = 1` for POC (i.e. at most one extra pass beyond the initial retrieval); config-driven per function at end-state, same governance pattern as arbitration rules (§8.2) — a function's knowledge owner sets it, every change audited.
+  - It must terminate and return the **best-available answer** (highest-scoring pass so far, not necessarily the last one) with an honest **"could not fully verify"** caveat and the final scores surfaced if the cap is hit without reaching `sufficient` — never loop indefinitely, never silently return a low-scoring answer as if it were fully verified.
   - Each additional pass still goes through the **same hard authorization pre-filter** (§8.1 step 2) — the sufficiency loop never bypasses authz to "try harder."
-  - The extra pass(es) and why they were triggered are logged to Audit (Layer 5) alongside the original query/answer, so this remains inspectable, not a silent retry.
-- **Relationship to arbitration/citations:** sufficiency checking is about *coverage* (did we retrieve enough), not *correctness* (is the retrieved content right) — arbitration (§8.2) and citation-grounding remain the mechanism for correctness; this step only asks "is anything obviously still missing."
-- **Open design questions (not yet resolved — see §19):** what specifically triggers "insufficient" (a structured rubric vs. free-form LLM judgment), how the iteration cap interacts with the latency target in §16, and whether this should also feed the not-yet-built RAG evaluation/scoring layer (§15) as a signal, rather than being a purely runtime decision with no persisted quality score.
+  - Every pass (initial + each retry), its scores, and its trigger reason are logged to Audit (Layer 5), so the whole loop remains inspectable, not a silent retry chain.
+- **Configuration (new — POC defaults, per-function overridable at end-state):**
+
+  | Setting | POC default | Notes |
+  |---|---|---|
+  | `coverage_threshold` | 0.7 | Below this on `coverage_score` → insufficient |
+  | `groundedness_threshold` | 0.8 | Below this on `groundedness_score` → insufficient (weighted higher — an ungrounded answer is worse than an incomplete one) |
+  | `max_retrieval_loops` | 1 | Max additional retrieval passes beyond the first; 0 disables the loop entirely (falls back to today's single-pass behavior) |
+  | `sufficiency_model` | same as answer-gen (GPT-5.5 mini) | End-state may use a cheaper/faster model for this call specifically, see Slice 2 challenge #1 (latency) in the implementation plan |
+
+  These four values live alongside the other per-function config (arbitration rules, `project_grants`, action-approval thresholds) — one config surface, not a new separate one.
+- **Relationship to arbitration/citations:** sufficiency checking is about *coverage and groundedness*, not the arbitration rules' *source-precedence correctness* — arbitration (§8.2) still decides which of several correct sources wins; this step asks "is the answer we generated actually well-supported and complete," a different, complementary question.
 - **POC scope:** not built in Slice 1 (capture-only) or the initial retrieval slice — this is a Slice 2+ enhancement, same phase as the query-planning step in §8.1 step 0. Both should be designed together since they bracket the same retrieval call (planning before, sufficiency check after).
 
 ### 8.4 Query → answer sequence
@@ -354,7 +376,7 @@ flowchart TB
   GR[("Graph store (Apache AGE)")]
   ARB["Arbitration (L3)"]
   LLM["Answer Gen (L3)"]
-  SUFF{"Sufficiency check (LLM): fully answered?"}
+  SUFF{"Sufficiency check (LLM): coverage/groundedness score vs. threshold"}
   AUD[("Audit (L5)")]
 
   C -->|"1 · query + credentials"| API
@@ -370,13 +392,13 @@ flowchart TB
   R -->|"7d · final ranked + budget-truncated chunk set"| ARB
   ARB -->|"8 · ranked, arbitrated chunks + citations"| LLM
   LLM -->|"9 · draft grounded answer + citations"| SUFF
-  SUFF -.->|"9a · insufficient (bounded retries, e.g. max 1-2): refined query"| R
-  SUFF -->|"9b · sufficient"| API
-  API -->|"10 · answer + transparency note (why you're seeing this, incl. reframe/routing/retry if any)"| C
-  API -.->|"log · query, reframe, routing, decision, sources, sufficiency verdict, answer"| AUD
+  SUFF -.->|"9a · below threshold (retry ≤ max_retrieval_loops): refined query"| R
+  SUFF -->|"9b · scores meet threshold, or cap hit (best-available + caveat)"| API
+  API -->|"10 · answer + transparency note (why you're seeing this, incl. reframe/routing/retry/scores if any)"| C
+  API -.->|"log · query, reframe, routing, decision, sources, coverage/groundedness scores, answer"| AUD
 ```
 
-> **In words** (for viewers that don't render Mermaid): The **Consumer** sends *query + credentials* to the **API**. The API authenticates with **AuthZ** and gets back a **signed token** (role, functions, ceiling, scopes). It passes *query + token* to a **Query planner** step, which decides which search engine(s) to invoke and whether the query needs reframing (both logged for explainability) — **end-state only, not in the POC baseline (see §8.1 step 0)**. **Retrieval** runs the resulting **hybrid candidate search** over the vector/keyword stores, applies the **HARD authorization filter *before* ranking**, then fuses via RRF into one ranked list. **Optionally** (multi-hop questions only), Retrieval then seeds a **1–2 hop graph expansion in Apache AGE from the already-ranked chunks** — itself permission-filtered, capped to K neighbors per hop per anchor, and re-scored into the same ranking rather than appended raw — before truncating to a fixed context budget. Authorized, budget-truncated candidates go to **Arbitration**, which hands ranked, arbitrated chunks + citations to the **Answer-Gen LLM**, producing a **draft** answer. A **sufficiency check** (also end-state, §8.3a) evaluates whether the draft fully answers the (reframed) query; if not, it triggers a **bounded** (e.g. max 1–2) additional retrieval pass with a refined query, still subject to the same authz filter — otherwise the draft becomes final. The API returns the answer to the Consumer with a *"why you're seeing this"* block (now also covering any reframe/routing/retry) — and logs the full trail, including reframe/routing/sufficiency decisions, to **Audit**.
+> **In words** (for viewers that don't render Mermaid): The **Consumer** sends *query + credentials* to the **API**. The API authenticates with **AuthZ** and gets back a **signed token** (role, functions, ceiling, scopes). It passes *query + token* to a **Query planner** step, which decides which search engine(s) to invoke and whether the query needs reframing (both logged for explainability) — **end-state only, not in the POC baseline (see §8.1 step 0)**. **Retrieval** runs the resulting **hybrid candidate search** over the vector/keyword stores, applies the **HARD authorization filter *before* ranking**, then fuses via RRF into one ranked list. **Optionally** (multi-hop questions only), Retrieval then seeds a **1–2 hop graph expansion in Apache AGE from the already-ranked chunks** — itself permission-filtered, capped to K neighbors per hop per anchor, and re-scored into the same ranking rather than appended raw — before truncating to a fixed context budget. Authorized, budget-truncated candidates go to **Arbitration**, which hands ranked, arbitrated chunks + citations to the **Answer-Gen LLM**, producing a **draft** answer. A **sufficiency check** (§8.3a) scores the draft's `coverage_score` and `groundedness_score` against configurable thresholds; if either falls short, it triggers a refined-query retry up to `max_retrieval_loops` times (POC default 1) — otherwise, or once the cap is hit (returning the best-available answer with a caveat), the draft becomes final. The API returns the answer to the Consumer with a *"why you're seeing this"* block (now also covering any reframe/routing/retry/scores) — and logs the full trail, including reframe/routing/scores, to **Audit**.
 
 ---
 
@@ -776,9 +798,9 @@ flowchart LR
 - **Cross-function access is allow-list only** (`project_grants`); default is single-function isolation.
 - **Prompt-injection defense:** ingested content is data, never instructions; system prompts and retrieved content are strictly separated. POC is prompt-level; a dedicated tool (**Azure AI Content Safety / Rebuff / Llama Guard**) is end-state (choice deferred).
 - **PII redaction:** **Microsoft Presidio** at ingestion — end-state.
-- **Immutable, complete audit:** every query, access decision, answer, and action logged to an **append-only PostgreSQL** trail (Layer 11), observed via **OpenTelemetry + Prometheus + Grafana + Loki**, with anomaly detection (custom rules) and red-team testing (custom / Microsoft **PyRIT**, deferred) before each function's launch. **POC = manual correction log only.**
-- **RAG evaluation:** **RAGAS** / Azure AI Evaluation for answer quality — end-state (choice deferred).
-- **⚠️ OPEN GAP — no per-response quality score exists yet, at any stage (POC or end-state).** There is currently no automated mechanism that scores/validates whether an individual response is "good" — groundedness, relevance, or otherwise. The POC's only quality signal is a **human-reviewed manual correction log** (per the bullet above); the RAGAS/Azure AI Evaluation line item is a **deferred, undecided** end-state choice, not a running system. This gap must be closed before Layer 2/3 (retrieval + answer generation) reaches any real user-facing rollout — flagged here explicitly so it isn't mistaken for "already handled" by the audit trail, which logs *that* an answer was given, not *whether* it was correct. See §19 for the specific open decision.
+- **Immutable, complete audit:** every query, access decision, answer, and action logged to an **append-only PostgreSQL** trail (Layer 11), observed via **OpenTelemetry + Prometheus + Grafana + Loki**, with anomaly detection (custom rules) and red-team testing (custom / Microsoft **PyRIT**, deferred) before each function's launch. **POC = manual correction log only**, now supplemented per-response by the sufficiency-check scores below.
+- **RAG evaluation:** **RAGAS** / Azure AI Evaluation for periodic batch answer-quality evaluation against held-out labeled question sets — end-state (choice of tool deferred; see §8.3a for how this relates to the runtime score).
+- **✅ Per-response quality score — resolved 2026-08-20 (was previously an open gap).** The post-answer sufficiency check (§8.3a) now produces and **persists** a structured `coverage_score` + `groundedness_score` (0.0-1.0 each) for every query, logged to the Audit trail alongside the query/answer. This is a real, running per-response score — not a placeholder — computed synchronously as part of the retrieval loop itself, using the same metric vocabulary RAGAS uses (so the two are complementary, not competing: this is the cheap always-on online signal, RAGAS/Azure AI Evaluation remains the heavier periodic offline validation of that signal's own calibration). See §8.3a for the full scoring mechanism, thresholds, and configurable retry-loop cap.
 - **Feedback governance:** corrections are captured, **reviewed, then promoted** to durable rules — a single bad correction cannot silently corrupt system-wide behavior.
 
 ---
@@ -853,9 +875,9 @@ The team agreed to evaluate three routes in parallel rather than committing to a
 3. **Red-team harness** — custom vs. Microsoft PyRIT (not decided yet).
 4. **Re-index SLAs** — acceptable staleness per store, and the priority-lane threshold for permission/tier changes.
 5. **Action approval thresholds** — per-class specifics (what counts as "bulk", which functions require a second approver).
-6. **⚠️ Per-response quality score — no design exists yet.** Flagged 2026-08-20. There is no mechanism, at POC or end-state, that produces a score/verdict for an individual response (groundedness, relevance, completeness). Today's only signal is the manual correction log (§15). Needs a decision on: what metric(s) (groundedness vs. answer-relevance vs. context-precision — RAGAS provides all three), whether scoring runs synchronously (blocks the response) or async (logged post-hoc for dashboards only), and whether it's the same mechanism as item 2 above or a separate lighter-weight runtime check distinct from periodic RAGAS batch evaluation.
+6. **RAG evaluation tool choice** — RAGAS vs. Azure AI Evaluation for the periodic offline batch layer (decide later). Note: the runtime per-response scoring mechanism itself is **resolved**, see §8.3a — this remaining item is only about which tool validates that mechanism's calibration over time, not whether per-response scoring exists.
 7. **AI-driven query planning (engine routing + query reframing) — design not started.** Flagged 2026-08-20, see §8.1 step 0. Open questions: what triggers reframing vs. passing the query through unchanged; how engine-routing decisions get logged/exposed in the "why you're seeing this" transparency block; whether routing is a discrete LLM call (added latency) or folded into a single combined planning+generation prompt; and how this interacts with query caching (a reframed query defeats a naive cache-by-raw-query-string strategy).
-8. **Post-answer sufficiency check (agentic retrieval loop) — design not started.** Flagged 2026-08-20, see §8.3a. Open questions: what specifically defines "insufficient" (structured rubric vs. free-form LLM self-critique), the iteration cap and how it interacts with the latency target (§16), whether a triggered extra pass should surface to the user as a visible "still searching" state or be fully transparent, and whether sufficiency verdicts should feed the (also not-yet-built) per-response quality score in item 6 as a signal rather than being a purely runtime, unlogged-for-quality-purposes decision.
+8. **Post-answer sufficiency check — scoring mechanism and iteration cap resolved 2026-08-20, see §8.3a** (structured coverage/groundedness rubric, configurable `max_retrieval_loops`, POC defaults 0.7/0.8/1). Still open: how `max_retrieval_loops` and the score thresholds interact with the latency target in §16 (needs an explicit updated latency budget for the full agentic path, not just the original single-pass hybrid-search target), whether a triggered extra pass should surface to the user as a visible "still searching" state or be fully transparent, and per-function tuning of the thresholds once real usage data exists (the 0.7/0.8 POC defaults are reasoned starting points, not measured).
 
 ---
 

@@ -273,3 +273,29 @@ system action or meaningful file/doc change, newest at the bottom.)*
   as planned; this is design-ahead documentation only. — *Requirement: user
   request to flag the scoring gap and pre-design agentic retrieval
   behavior before Phase 1.4 implementation resumes.*
+
+- **[HLD design update — resolves previously-flagged scoring gap]** Per user
+  request: fleshed out §8.3a's sufficiency check with a concrete,
+  machine-parseable scoring mechanism (`coverage_score` +
+  `groundedness_score`, 0.0-1.0, JSON verdict) instead of free-form LLM
+  judgment, deliberately using the same metric vocabulary as RAGAS
+  (context_precision/recall ~= coverage, faithfulness ~= groundedness) so
+  the runtime score and the future periodic RAGAS batch layer are
+  complementary rather than two separate scoring systems. Added a
+  configurable `max_retrieval_loops` (POC default 1) plus
+  `coverage_threshold`/`groundedness_threshold` (POC defaults 0.7/0.8) as a
+  new per-function config surface, same governance pattern as arbitration
+  rules (owner-set, every change audited). Both scores are now persisted to
+  Audit per query, which directly resolves the "no per-response quality
+  score exists" gap flagged in the previous session — updated §15 and §19
+  to mark that item resolved (checked) rather than open, while leaving the
+  RAGAS-vs-Azure-AI-Evaluation tool choice for the periodic batch layer as
+  the one remaining open item. Updated the §8.4 sequence diagram/prose to
+  reflect scored thresholds instead of a vague "sufficient?" check.
+  Mirrored the same resolution into
+  Landmark_Knowledgebase_Implementation_Plan.md's Slice 2 section
+  (challenge #3 updated from "no score exists" to "score exists, needs
+  calibration"). No code written -- HLD/plan documentation only, ahead of
+  resuming Phase 1.4 implementation. Requirement: user request to keep
+  the scoring mechanism and configurable loop cap, then proceed to Phase
+  1.4.
