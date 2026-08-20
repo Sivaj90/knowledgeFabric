@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from kb_fabric.connectors.folder import FolderConnector, compute_content_hash
+from kb_fabric.connectors.folder import SUPPORTED_EXTENSIONS, FolderConnector, compute_content_hash
 from kb_fabric.db import get_sessionmaker
 from kb_fabric.models import Document
 
@@ -59,7 +59,14 @@ def test_unsupported_extension_is_skipped(tmp_raw_dir, session):
 def test_new_files_are_enqueued_with_stub_acl(tmp_raw_dir, session):
     connector = FolderConnector(root_dir=tmp_raw_dir, session=session)
     envelopes = [e for batch in connector.load_from_state() for e in batch]
-    assert len(envelopes) == 2  # sample1.md + sample2.txt, .log excluded
+    # Every supported-extension fixture except ignored.log should show up --
+    # count is derived from the fixtures dir itself rather than hardcoded,
+    # since the fixture set has grown (Phase 1.6 added docx/pptx/pdf samples).
+    expected_count = sum(
+        1 for f in FIXTURES_DIR.iterdir() if f.suffix.lower() in SUPPORTED_EXTENSIONS
+    )
+    assert len(envelopes) == expected_count
+    assert not any(e.source_uri.endswith(".log") for e in envelopes)
 
     for e in envelopes:
         assert e.source_system == "local_folder"

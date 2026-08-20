@@ -352,3 +352,50 @@ system action or meaningful file/doc change, newest at the bottom.)*
   itself is unit-tested but not exercised end-to-end twice), and
   superseded_by versioning on file update -- which does not exist in the
   pipeline code yet at all, not just untested.
+
+- **[Phase 1.5/1.6 complete]** Generated real binary test fixtures
+  (tests/fixtures/sample3.docx, sample4.pptx, sample5.pdf via
+  python-docx/python-pptx/reportlab) and a real scanned/image-only PDF
+  (sample6_scanned.pdf -- text rendered into a PIL image with no embedded
+  text layer, to force the Tesseract OCR path rather than the fast
+  text-extraction path). Added tests/test_parse_filetypes.py (4 tests)
+  covering all four real file types through the actual parse pipeline.
+  Requirement: Phase 1.5/1.6 of implementation plan, closing the gaps
+  flagged after Phase 1.4 (only .md/.txt fixtures existed then).
+- **[bug found + fixed, 4th of this project]** OCR path failed with
+  PDFInfoNotInstalledError -- poppler-utils (pdfinfo/pdftoppm) missing,
+  needed by pdf2image to rasterize PDF pages before Tesseract can OCR
+  them. Fixed via dnf install poppler-utils. Confirmed live: OCR
+  correctly extracted "Scanned Document... Landmark warehouse incident
+  report JAFZA..." from the image-only PDF fixture.
+- **[superseded_by versioning implemented, Phase 1.6]** This did not exist
+  anywhere in the pipeline before now -- Phase 1.2's schema had the
+  version/superseded_by columns but nothing populated them. Implemented
+  find_current_version() + versioning logic in
+  src/kb_fabric/pipeline/write.py: a changed-file re-ingest creates a new
+  Document with version = previous+1 and marks the previous Document's
+  superseded_by. Deliberately scoped to document-level only, NOT
+  chunk-level -- documented as a real limitation (no well-defined 1:1
+  chunk mapping across re-chunks without content-diffing), not silently
+  skipped. Verified in tests/test_versioning.py at both the write-function
+  level and the full pipeline level (parse real changed file -> new
+  version -> old version correctly marked superseded).
+- **[idempotent re-run verified via live CLI, Phase 1.6]**
+  tests/test_versioning.py's
+  test_idempotent_reingest_via_live_cli_no_duplicate_rows runs the actual
+  run_ingest entrypoint twice against the same unchanged file: confirmed
+  first run processes 1 document, second run's dedup gate yields 0 (file
+  not even enqueued), and exactly 1 Document row exists in Postgres after
+  both runs.
+- **[test-hygiene regression found + fixed]** Adding the new binary
+  fixtures broke 3 existing tests that hardcoded "2 fixture files"
+  (test_new_files_are_enqueued_with_stub_acl,
+  test_dry_run_does_not_touch_celery,
+  test_real_enqueue_reaches_redis_broker) -- they picked up all 6 sample
+  files instead of the original 2, and one test also leaked 12 real rows
+  into Postgres in the process. Fixed by deriving the expected count from
+  SUPPORTED_EXTENSIONS + the fixtures directory contents at test-run time
+  rather than a hardcoded literal, so the test suite doesn't silently
+  break every time a new fixture file is added. Verified by running the
+  full suite twice in a row: 41 passed both times, zero rows left in
+  Postgres afterward.

@@ -250,12 +250,10 @@ real RBAC/classification, Next.js UI, observability, CI/CD.
       `tests/test_folder_connector.py`
       (`test_dedup_gate_skips_already_ingested_unchanged_file`,
       `test_dedup_gate_re_enqueues_changed_file`)
-- [x] Test chunker — done for `.md`/`.txt` in `tests/test_pipeline.py`
-      (`test_parse_markdown_file`, `test_parse_text_file`,
-      `test_chunk_text_splits_on_size`). **Not yet covered:** real `.docx`/
-      `.pdf`/`.pptx` fixture files — flagged as a Phase 1.6 gap below,
-      since those need actual binary fixture files to be created/checked
-      in, a bigger lift than the plain-text fixtures used so far.
+- [x] Test chunker on each file type (docx/pdf/md/pptx) with fixture files
+      — `tests/test_parse_filetypes.py` (real generated .docx/.pptx/.pdf
+      fixtures, plus a scanned/image-only .pdf for the OCR path) alongside
+      `tests/test_pipeline.py`'s md/txt coverage
 - [x] Test classify stub always returns "internal" —
       `test_classify_always_returns_internal`
 - [x] Test embedding call wires into pgvector write correctly — done
@@ -272,25 +270,57 @@ real RBAC/classification, Next.js UI, observability, CI/CD.
       (a bad write would fail the insert, not just leave a null)
 
 ### Phase 1.6 — Functional testing
-- [x] End-to-end: drop a real `.md` file in `data/raw/`, run the pipeline,
-      verify rows appear in Postgres metadata + pgvector + FTS — done live
-      manually (see Phase 1.4 verification notes above) for `.md`;
-      **remaining gap:** repeat for real `.docx`/`.pdf`/`.pptx` files (need
-      actual binary fixtures — plain-text fixtures used so far don't
-      exercise Unstructured.io's docx/pptx/pdf-specific parsing paths)
-- [ ] Idempotency: re-run on unchanged file, verify no duplicate rows / no
-      re-embedding (dedup gate itself is tested per Phase 1.5, but not yet
-      as a full live re-run through the actual CLI entrypoint twice)
-- [ ] Update: modify a file, verify re-classification/re-chunk/re-embed
-      happens and old version is versioned per `superseded_by` semantics
-      (note: `superseded_by` wiring doesn't exist yet anywhere in the
-      pipeline code — Phase 1.2's schema has the column, but nothing sets
-      it on a changed-file re-ingest; this needs actual implementation,
-      not just a test)
-- [ ] OCR path: drop a scanned/image-based PDF, verify Tesseract fallback
-      triggers and text is extracted (Tesseract itself is now installed
-      and verified working via `tesseract --version`, but no scanned-PDF
-      fixture has been run through the pipeline yet)
+- [x] End-to-end: drop a real docx/pdf/md/pptx file in `data/raw/`, run the
+      pipeline, verify rows appear in Postgres metadata + pgvector + FTS —
+      done live manually for `.md` (Phase 1.4 verification), and now also
+      covered by real generated `.docx`/`.pptx`/`.pdf` fixtures parsed
+      through the actual pipeline in `tests/test_parse_filetypes.py`
+- [x] Idempotency: re-run on unchanged file, verify no duplicate rows / no
+      re-embedding — `tests/test_versioning.py`
+      `test_idempotent_reingest_via_live_cli_no_duplicate_rows` runs the
+      **actual CLI entrypoint** (`python -m kb_fabric.run_ingest`
+      equivalent) twice against the same file: first run enqueues+processes
+      1 document, second run's connector dedup gate yields 0 (file skipped
+      entirely, not even enqueued) — confirmed exactly 1 `Document` row
+      exists after both runs, not 2
+- [x] Update: modify a file, verify re-classification/re-chunk/re-embed
+      happens and old version is versioned per `superseded_by` semantics —
+      **implemented (was previously missing entirely, not just untested)**:
+      `src/kb_fabric/pipeline/write.py` gained `find_current_version()` +
+      versioning logic in `write_document_envelope()`. A changed-file
+      re-ingest now creates a new `Document` with `version = previous + 1`
+      and sets the previous `Document.superseded_by` to the new document's
+      id. Verified in `tests/test_versioning.py` (4 tests) at both the
+      `write_document_envelope` level and the full `process_envelope`
+      pipeline level (parse real changed file content -> new version ->
+      old version correctly marked superseded).
+      **Documented scoping limitation (not an oversight):** chunk-level
+      `superseded_by` (HLD §7.4 has this column on chunks too) is NOT
+      populated — there's no well-defined 1:1 mapping between an old
+      document's chunks and a new document's chunks without a real
+      content-diffing algorithm, since re-chunking can shift every chunk
+      boundary. Slice 1 relies on filtering by
+      `document.superseded_by IS NULL` (a join) at retrieval time to
+      exclude stale content, which is sufficient for now; true chunk-level
+      diffing is deferred, flagged here for whoever designs the retrieval
+      slice.
+- [x] OCR path: drop a scanned/image-based PDF, verify Tesseract fallback
+      triggers and text is extracted — `tests/test_parse_filetypes.py`
+      `test_parse_scanned_pdf_triggers_ocr_fallback`, against a real
+      generated image-only PDF fixture (`sample6_scanned.pdf`, rendered
+      via PIL + reportlab, no embedded text layer at all — forces the OCR
+      path, doesn't just test the same text-extraction path with a
+      different file extension). **Real bug found + fixed:** the OCR path
+      needs `poppler-utils` (`pdfinfo`/`pdftoppm`, used by `pdf2image` to
+      rasterize PDF pages before handing them to Tesseract) — missing on
+      this system, confirmed via the actual error
+      (`PDFInfoNotInstalledError: Unable to get page count. Is poppler
+      installed and in PATH?`), fixed via `dnf install poppler-utils`.
+      This is the 4th real environment dependency bug found across
+      Phases 1.4/1.6 (after libGL, the pdfminer/unstructured conflict, and
+      the openai/httpx conflict) — Tesseract OCR itself worked correctly
+      once poppler-utils was present, extracting "Scanned Document...
+      Landmark warehouse incident report JAFZA..." from the image-only PDF.
 
 ### Phase 1.7 — Local deployment
 - [ ] systemd unit files (or equivalent) for: Postgres (native package

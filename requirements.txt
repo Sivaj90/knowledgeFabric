@@ -39,3 +39,7 @@ openai>=3.0.0
 # --- Testing ---
 pytest==8.3.3
 pytest-mock==3.14.0
+# reportlab: test-fixture generation only (Phase 1.6 -- generates real
+# .pdf test fixtures, including a scanned/image-only one for OCR testing).
+# Not used by application code.
+reportlab==5.0.0

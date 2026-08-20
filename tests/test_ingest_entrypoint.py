@@ -12,11 +12,19 @@ import pytest
 from sqlalchemy import select
 
 from kb_fabric.celery_app import celery_app
+from kb_fabric.connectors.folder import SUPPORTED_EXTENSIONS
 from kb_fabric.db import get_sessionmaker
 from kb_fabric.models import Document
 from kb_fabric.run_ingest import run
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+def _expected_fixture_count() -> int:
+    """Number of fixture files with a supported extension -- derived, not
+    hardcoded, since the fixture set has grown (Phase 1.6 added
+    docx/pptx/pdf samples on top of the original md/txt)."""
+    return sum(1 for f in FIXTURES_DIR.iterdir() if f.suffix.lower() in SUPPORTED_EXTENSIONS)
 
 
 @pytest.fixture
@@ -37,7 +45,7 @@ def tmp_raw_dir(tmp_path, monkeypatch):
 
 def test_dry_run_does_not_touch_celery(tmp_raw_dir, capsys):
     count = run(dry_run=True)
-    assert count == 2  # sample1.md + sample2.txt
+    assert count == _expected_fixture_count()
 
 
 def test_real_enqueue_reaches_redis_broker(tmp_raw_dir):
@@ -48,9 +56,10 @@ def test_real_enqueue_reaches_redis_broker(tmp_raw_dir):
     end-to-end, without needing a separate worker process in the test
     environment. Cleans up the rows it writes (real commits happen inside
     the pipeline, same reasoning as test_pipeline.py)."""
+    expected_count = _expected_fixture_count()
     source_uris = [
         (tmp_raw_dir / f.name).resolve().as_uri() for f in FIXTURES_DIR.iterdir()
-        if f.suffix.lower() in {".md", ".txt"}
+        if f.suffix.lower() in SUPPORTED_EXTENSIONS
     ]
 
     celery_app.conf.task_always_eager = True
@@ -60,14 +69,14 @@ def test_real_enqueue_reaches_redis_broker(tmp_raw_dir):
     finally:
         celery_app.conf.task_always_eager = False
 
-    assert count == 2
+    assert count == expected_count
 
     Session = get_sessionmaker()
     with Session() as session:
         docs = session.execute(
             select(Document).where(Document.source_uri.in_(source_uris))
         ).scalars().all()
-        assert len(docs) == 2  # pipeline actually ran and wrote real rows
+        assert len(docs) == expected_count  # pipeline actually ran and wrote real rows
         for doc in docs:
             session.delete(doc)
         session.commit()
