@@ -65,3 +65,21 @@ Captured 2026-08-20, VM state prior to any installs:
 
 *(Entries below this line are appended as work proceeds — one entry per
 system action or meaningful file/doc change, newest at the bottom.)*
+
+---
+
+## 2026-08-20 (continued)
+
+- **[research]** Dispatched two background research subagents to study
+  reference repos for architecture patterns before drafting the local
+  implementation plan and local-VPC HLD:
+  - `onyx-dot-app/onyx` (github.com/onyx-dot-app/onyx) — open-source
+    enterprise RAG/search platform, studied for connector abstraction,
+    chunking/embedding pipeline, permission-aware retrieval, deployment model.
+  - `semantica-agi/semantica` (github.com/semantica-agi/semantica) — studied
+    for knowledge-graph schema/build pipeline and hybrid vector+graph
+    retrieval fusion patterns.
+  No code copied verbatim; used for pattern/architecture reference only,
+  per user request to "get the inputs from that as well" before building.
+  — *Requirement: user wants proven external patterns considered before
+  committing to our own local pipeline design.*
