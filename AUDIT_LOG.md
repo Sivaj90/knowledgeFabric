@@ -83,3 +83,24 @@ system action or meaningful file/doc change, newest at the bottom.)*
   per user request to "get the inputs from that as well" before building.
   — *Requirement: user wants proven external patterns considered before
   committing to our own local pipeline design.*
+
+- **[research complete]** Both subagents finished (~2.5 min each). Key
+  takeaways folded into `Landmark_Knowledgebase_Local_VPC_HLD.md` §5 and
+  `Landmark_Knowledgebase_Implementation_Plan.md`: onyx's early-binding
+  ACL-on-chunk pattern (flattened token array + GIN index + hard SQL filter
+  before ranking), multi-granularity chunking with a metadata-suffix token
+  cap, and a connector interface shape to imitate; semantica's concrete
+  Apache AGE integration mechanics (idempotent extension/graph creation,
+  one-label-per-vertex workaround, ID separation, literal-escaping
+  requirement) for the later deferred graph-store slice, plus confirmation
+  that neither reference repo solves real ACL/RBAC for us — that remains
+  ours to build. Full briefs saved by the delegation subsystem at
+  `~/.hermes/cache/delegation/subagent-summary-0-20260820_080425_258358.txt`
+  (onyx) and `-1-20260820_080425_260392.txt` (semantica).
+
+- **[tooling]** Installed `gh` CLI (GitHub CLI) via `sudo dnf install -y gh`
+  — not yet authenticated (no token provided). User wants this repo pushed
+  to a private GitHub repo for access outside this VPC; paused pending a
+  personal access token or the user running `gh auth login` themselves.
+  — *Requirement: user asked whether the git repo is reachable from outside
+  the VPC; answer is not yet, needs a remote configured.*
