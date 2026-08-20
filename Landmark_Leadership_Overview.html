@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landmark Context Layer — Leadership Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Serif:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --bg:#f5f7fa; --surface:#ffffff; --surface-2:#f1f5f9;
+    --text:#1e293b; --muted:#5b6b7f; --heading:#12233b;
+    --border:#e2e8f0; --border-strong:#cbd5e1;
+    --accent:#e11d48; --accent-soft:#fce7ec; --navy:#1e3a5f; --link:#b21739;
+    --code-bg:#f1f5f9; --quote-bg:#f6f8fb; --quote-bar:#93c5fd;
+    --shadow:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.06);
+    --green:#0f7a4d; --amber:#b45309;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0b1220; --surface:#111c30; --surface-2:#0f1a2c;
+      --text:#dbe4f0; --muted:#93a4bd; --heading:#eef4fb;
+      --border:#25344b; --border-strong:#33465f;
+      --accent:#fb7185; --accent-soft:#2a1620; --navy:#93c5fd; --link:#fda4af;
+      --code-bg:#16233a; --quote-bg:#101d31; --quote-bar:#3b5a86;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+      --green:#34d399; --amber:#fbbf24;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b1220; --surface:#111c30; --surface-2:#0f1a2c;
+    --text:#dbe4f0; --muted:#93a4bd; --heading:#eef4fb;
+    --border:#25344b; --border-strong:#33465f;
+    --accent:#fb7185; --accent-soft:#2a1620; --navy:#93c5fd; --link:#fda4af;
+    --code-bg:#16233a; --quote-bg:#101d31; --quote-bar:#3b5a86;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+    --green:#34d399; --amber:#fbbf24;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"IBM Plex Sans", system-ui, sans-serif; line-height:1.65;
+  }
+  .topbar{
+    position:sticky; top:0; z-index:10; background:var(--surface);
+    border-bottom:1px solid var(--border); padding:10px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .topbar .brand{font-weight:700; color:var(--heading); font-size:14px; letter-spacing:.02em;}
+  .theme-toggle{
+    border:1px solid var(--border-strong); background:var(--surface-2); color:var(--text);
+    border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer;
+  }
+  main{max-width:980px; margin:0 auto; padding:40px 24px 100px;}
+  .cover{
+    background:linear-gradient(135deg, var(--navy), #0f1c30 70%);
+    color:#f8fafc; border-radius:16px; padding:48px 40px; margin-bottom:40px;
+    box-shadow:var(--shadow);
+  }
+  .cover .eyebrow{
+    text-transform:uppercase; letter-spacing:.12em; font-size:12px; font-weight:600;
+    color:#93c5fd; margin-bottom:14px;
+  }
+  .cover h1{
+    font-family:"IBM Plex Serif", serif; font-size:30px; line-height:1.3; margin:0 0 14px;
+  }
+  .cover p{font-size:16px; color:#cbd5e1; max-width:660px; margin:0;}
+  .cover .tags{margin-top:22px; display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{
+    display:inline-block; padding:5px 12px; border-radius:999px; font-size:12px; font-weight:600;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); color:#e2e8f0;
+  }
+  h2{
+    font-family:"IBM Plex Serif", serif; color:var(--heading); font-size:24px;
+    margin:56px 0 6px; padding-bottom:10px; border-bottom:2px solid var(--accent);
+  }
+  h2 .num{color:var(--accent); font-family:"IBM Plex Mono", monospace; font-size:16px; margin-right:10px;}
+  h3{color:var(--heading); font-size:17px; margin:28px 0 10px;}
+  h4{color:var(--heading); font-size:14.5px; margin:18px 0 6px;}
+  p{color:var(--text); font-size:15px;}
+  .lede{font-size:16.5px; color:var(--muted); margin-top:0;}
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:22px 24px; margin:18px 0; box-shadow:var(--shadow);
+  }
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;}
+  @media (max-width:760px){ .grid2, .grid3{grid-template-columns:1fr;} }
+  .stat-card{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+    padding:16px 18px;
+  }
+  .stat-card .label{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600;}
+  .stat-card .value{font-size:15px; color:var(--heading); font-weight:600; margin-top:4px;}
+  blockquote{
+    background:var(--quote-bg); border-left:4px solid var(--quote-bar); margin:20px 0;
+    padding:14px 18px; border-radius:0 8px 8px 0; color:var(--text); font-size:14.5px;
+  }
+  code{
+    background:var(--code-bg); padding:1px 6px; border-radius:4px;
+    font-family:"IBM Plex Mono", monospace; font-size:13px;
+  }
+  table{width:100%; border-collapse:collapse; margin:18px 0; font-size:13.5px;}
+  th, td{padding:10px 12px; border:1px solid var(--border); text-align:left; vertical-align:top;}
+  th{background:var(--surface-2); color:var(--heading); font-weight:600;}
+  tr:nth-child(even) td{background:var(--surface-2);}
+  ul, ol{padding-left:22px;}
+  li{margin-bottom:6px; font-size:15px;}
+  .badge{
+    display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:5px;
+    text-transform:uppercase; letter-spacing:.04em; margin-left:6px;
+  }
+  .badge.poc{background:var(--accent-soft); color:var(--accent);}
+  .badge.end{background:var(--surface-2); color:var(--muted); border:1px solid var(--border-strong);}
+  .badge.v0{background:#dcfce7; color:#166534;}
+  .badge.v1{background:#dbeafe; color:#1e40af;}
+  .badge.v2{background:#fef3c7; color:#92400e;}
+  @media (prefers-color-scheme: dark){
+    .badge.v0{background:#0f2e1c; color:#4ade80;}
+    .badge.v1{background:#0f2138; color:#7dd3fc;}
+    .badge.v2{background:#2e2308; color:#fbbf24;}
+  }
+
+  /* pipeline / journey diagram */
+  .pipeline{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:stretch; margin:22px 0;
+  }
+  .pipe-step{
+    flex:1 1 150px; background:var(--surface); border:1px solid var(--border-strong);
+    border-radius:10px; padding:14px 14px; position:relative; box-shadow:var(--shadow);
+  }
+  .pipe-step .n{
+    font-family:"IBM Plex Mono", monospace; font-size:11px; color:var(--accent); font-weight:700;
+  }
+  .pipe-step .t{font-weight:600; color:var(--heading); font-size:13.5px; margin-top:4px;}
+  .pipe-step .d{font-size:12px; color:var(--muted); margin-top:4px;}
+  .pipe-arrow{
+    display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:18px;
+    flex:0 0 18px;
+  }
+  @media (max-width:760px){ .pipe-arrow{display:none;} .pipeline{flex-direction:column;} }
+  .gov-wrap{
+    border:2px dashed var(--border-strong); border-radius:14px; padding:16px; margin-top:6px;
+  }
+  .gov-wrap .gov-label{
+    font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:700;
+    color:var(--muted); margin-bottom:10px;
+  }
+
+  .callout{
+    border-radius:10px; padding:16px 18px; margin:18px 0; font-size:14.5px;
+    border:1px solid; display:flex; gap:12px;
+  }
+  .callout.warn{ background:var(--accent-soft); border-color:var(--accent); }
+  .callout.info{ background:var(--surface-2); border-color:var(--border-strong); }
+  .callout.good{ background:#ecfdf5; border-color:var(--green); }
+  @media (prefers-color-scheme: dark){ .callout.good{ background:#0c261c; } }
+  .callout .icon{font-size:20px; line-height:1;}
+
+  footer{
+    max-width:980px; margin:0 auto; padding:0 24px 60px; color:var(--muted); font-size:12.5px;
+  }
+  .toc{
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:20px 24px; margin-bottom:10px;
+  }
+  .toc h3{margin-top:0;}
+  .toc ol{margin:0;}
+  .toc a{color:var(--link); text-decoration:none; font-weight:500;}
+  .toc a:hover{text-decoration:underline;}
+
+  /* example cards */
+  .example-card{
+    background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--navy);
+    border-radius:10px; padding:16px 20px; margin:14px 0; box-shadow:var(--shadow);
+  }
+  .example-card .domain{
+    font-size:11px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--navy);
+  }
+  .example-card .q{font-style:italic; color:var(--heading); font-size:15px; margin:6px 0;}
+  .example-card .a{font-size:13.5px; color:var(--muted);}
+
+  /* build/oss/buy comparison */
+  .option-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin:20px 0;}
+  @media (max-width:820px){ .option-grid{grid-template-columns:1fr;} }
+  .option-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:18px 20px; box-shadow:var(--shadow); display:flex; flex-direction:column;
+  }
+  .option-card h4{margin:0 0 10px; font-size:15px;}
+  .option-card .cost{
+    font-size:12px; font-weight:700; color:var(--accent); margin-bottom:10px;
+    text-transform:uppercase; letter-spacing:.05em;
+  }
+  .option-card ul{padding-left:18px; margin:0 0 10px; flex:1;}
+  .option-card li{font-size:13px; margin-bottom:5px;}
+  .option-card .pro{color:var(--green);}
+  .option-card .con{color:var(--amber);}
+
+  /* flow diagrams (ingestion / retrieval) — technical appendix */
+  .flow-diagram{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:24px 22px; margin:20px 0; box-shadow:var(--shadow); overflow-x:auto;
+  }
+  .flow-title{
+    font-size:12px; text-transform:uppercase; letter-spacing:.08em; font-weight:700;
+    color:var(--muted); margin-bottom:16px;
+  }
+  .flow-row{display:flex; align-items:stretch; gap:8px; margin-bottom:6px; min-width:max-content;}
+  .flow-box{
+    flex:1 1 150px; min-width:130px; background:var(--surface-2); border:1px solid var(--border-strong);
+    border-radius:9px; padding:10px 12px; position:relative;
+  }
+  .flow-box.poc{border-left:3px solid var(--accent);}
+  .flow-box.end{border-left:3px solid var(--border-strong); opacity:.82;}
+  .flow-box .fn{font-family:"IBM Plex Mono", monospace; font-size:10px; color:var(--accent); font-weight:700;}
+  .flow-box .ft{font-weight:600; color:var(--heading); font-size:12.5px; margin-top:3px;}
+  .flow-box .fd{font-size:11px; color:var(--muted); margin-top:3px;}
+  .flow-store{
+    flex:1 1 130px; min-width:110px; background:var(--accent-soft); border:1px solid var(--accent);
+    border-radius:9px 9px 30% 30% / 9px 9px 14px 14px; padding:10px 12px; text-align:center;
+  }
+  .flow-store .ft{font-weight:700; color:var(--accent); font-size:12px;}
+  .flow-store .fd{font-size:10.5px; color:var(--muted); margin-top:2px;}
+  .flow-diamond{
+    flex:0 0 140px; min-width:120px; background:var(--surface-2); border:1px solid var(--border-strong);
+    border-radius:9px; padding:10px 14px; text-align:center; display:flex; align-items:center; justify-content:center;
+  }
+  .flow-diamond .ft{font-weight:600; color:var(--heading); font-size:12px;}
+  .flow-vconnector{
+    display:flex; justify-content:center; color:var(--muted); font-size:16px; margin:2px 0;
+  }
+  .flow-hconnector{
+    display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:16px;
+    flex:0 0 20px;
+  }
+  .flow-group{
+    border:1px dashed var(--border-strong); border-radius:12px; padding:14px 12px 10px; margin-bottom:6px;
+  }
+  .flow-group .fg-label{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; font-weight:700;
+    color:var(--muted); margin-bottom:8px;
+  }
+  .flow-legend{display:flex; gap:18px; margin-top:14px; font-size:11.5px; color:var(--muted); flex-wrap:wrap;}
+  .flow-legend span{display:flex; align-items:center; gap:6px;}
+  .flow-legend i{width:10px; height:10px; border-radius:3px; display:inline-block;}
+  .flow-legend .lp{background:var(--accent);}
+  .flow-legend .le{background:var(--border-strong);}
+  .flow-note{font-size:12.5px; color:var(--muted); margin-top:10px;}
+  @media (max-width:900px){
+    .flow-row{flex-direction:column;}
+    .flow-hconnector{display:none;}
+  }
+
+  .appendix-banner{
+    background:var(--surface-2); border:1px dashed var(--border-strong); border-radius:12px;
+    padding:16px 20px; margin:40px 0 20px; font-size:13.5px; color:var(--muted);
+  }
+  .appendix-banner strong{color:var(--heading);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Landmark &middot; Context Layer for Teams &amp; Agents</div>
+  <button class="theme-toggle" onclick="toggleTheme()">Toggle theme</button>
+</div>
+
+<main>
+
+  <div class="cover">
+    <div class="eyebrow">Leadership Briefing &middot; v2 (post-review)</div>
+    <h1>Landmark's knowledge is scattered everywhere. This is the plan to turn it into one connected, trustworthy context layer — for people first, and for AI agents next.</h1>
+    <p>A plain-English walkthrough of the problem, the product, a few concrete examples, and the plan to prove it works — with the deeper technical design kept as backup material at the end.</p>
+    <div class="tags">
+      <span class="chip">V0: Capture knowledge</span>
+      <span class="chip">V1: Surface it to the right people</span>
+      <span class="chip">V2: Let agents act on it</span>
+    </div>
+  </div>
+
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#problem">The Problem, in Plain English</a></li>
+      <li><a href="#product">What We're Building</a></li>
+      <li><a href="#examples">What This Looks Like in Practice</a></li>
+      <li><a href="#approach">Our Approach: V0 &rarr; V1 &rarr; V2</a></li>
+      <li><a href="#scope">What's In Scope First (and What's Not, Yet)</a></li>
+      <li><a href="#options">Build vs. Open Source vs. Buy</a></li>
+      <li><a href="#poc">The POC — What We're Doing Next</a></li>
+      <li><a href="#risks">Open Questions &amp; What We're Still Learning</a></li>
+      <li><a href="#appendix">Appendix: Technical Deep Dive</a></li>
+    </ol>
+  </div>
+
+  <h2 id="problem"><span class="num">01</span>The Problem, in Plain English</h2>
+  <p class="lede">Our knowledge is everywhere — and nowhere useful.</p>
+  <p>Across every part of Landmark — not just one team or one system — the same thing keeps happening: valuable knowledge gets created (a design doc, a meeting, a wiki page, a decision in a ticket) and then it basically disappears. It's technically "saved" somewhere, but nobody can easily find it, trust it, or connect it to everything else that's related. Employees waste hours re-discovering things that were already figured out. Leaders can't get a fast, honest answer to "what has this team actually been working on?" And every time we try to bring AI into the picture, we hit the same wall: an AI is only as good as the knowledge we can safely hand it.</p>
+  <p>This isn't a problem for one function to solve on its own — it shows up the same way in R&amp;D, Ops, e-commerce, supply chain, and everywhere else. So we're deliberately keeping the problem broad, even though we'll prove it out narrow.</p>
+
+  <div class="card">
+    <p style="margin-top:0;"><strong>We broke it down into three problems, in order of what needs to be solved first:</strong></p>
+    <div class="grid3">
+      <div class="stat-card">
+        <div class="label"><span class="badge v0">V0</span></div>
+        <div class="value" style="margin-top:8px;">How do we collect everything we know and turn it into connected knowledge?</div>
+      </div>
+      <div class="stat-card">
+        <div class="label"><span class="badge v1">V1</span></div>
+        <div class="value" style="margin-top:8px;">How do we get the right knowledge to the right person, at the right level of detail?</div>
+      </div>
+      <div class="stat-card">
+        <div class="label"><span class="badge v2">V2</span></div>
+        <div class="value" style="margin-top:8px;">How do we let AI agents use that knowledge to actually take action, not just answer questions?</div>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:13.5px; color:var(--muted);">These are three stages of maturity, not three separate projects — each one builds on the last. We're starting with V0 first.</p>
+
+  <h2 id="product"><span class="num">02</span>What We're Building</h2>
+  <p class="lede">Think of it as a shared "second brain" for the company — a context layer that both people and AI agents can draw on.</p>
+  <p>Instead of everyone individually searching SharePoint, Teams, and DevOps and hoping they find the right thing, we're building one place that automatically pulls that knowledge together, keeps it organized and current, and lets anyone — a person or an AI agent — ask a question and get a grounded, trustworthy answer with sources.</p>
+  <p>It's not a chatbot bolted onto a search bar, and it's not a place where people have to manually upload and maintain documents. The whole point is that knowledge flows in automatically, and gets easier to find and trust over time — not that we ask employees to do more data entry.</p>
+
+  <h2 id="examples"><span class="num">03</span>What This Looks Like in Practice</h2>
+  <p class="lede">A few concrete examples make this real. Here's what someone could ask once the R&amp;D domain is loaded in.</p>
+
+  <div class="example-card">
+    <div class="domain">R&amp;D team member</div>
+    <div class="q">"What has the R&amp;D team been working on over the last few months?"</div>
+    <div class="a">Answer pulled from design docs, wiki pages, and meeting notes across the team — with sources cited, not a guess.</div>
+  </div>
+  <div class="example-card">
+    <div class="domain">R&amp;D team member</div>
+    <div class="q">"Give me more detail on the enterprise knowledge work — what's been decided so far?"</div>
+    <div class="a">A deeper, topic-specific answer drawn only from the relevant documents and discussions, not the whole team's history.</div>
+  </div>
+  <div class="example-card">
+    <div class="domain">R&amp;D team member</div>
+    <div class="q">"Has anyone looked at optimizing token cost?"</div>
+    <div class="a">Surfaces any prior discussion or decisions on that exact topic, even if it's buried in a meeting transcript or a wiki page nobody remembers the name of.</div>
+  </div>
+  <div class="example-card">
+    <div class="domain">Leadership (cross-function)</div>
+    <div class="q">"What are the top topics teams are working on across the business right now?"</div>
+    <div class="a">A leader gets a fast, aggregated view of where attention is going across functions — without chasing down individual team leads for status updates.</div>
+  </div>
+  <div class="example-card">
+    <div class="domain">Ops (future domain)</div>
+    <div class="q">"What's the standard resolution for this type of incident, and has it happened before?"</div>
+    <div class="a">SOPs, past incidents, and tickets are knowledge-heavy and highly repetitive — making Ops one of the easiest domains to demonstrate clear, immediate value.</div>
+  </div>
+
+  <div class="callout info">
+    <div class="icon">&#128274;</div>
+    <div><strong>Setting expectations honestly:</strong> the system answers from what it has actually ingested and is grounded in cited sources — it won't invent an answer it can't support, and it won't yet know about content we haven't brought in (see Scope, below). Being clear about what it <em>can't</em> do yet is as important as showcasing what it can.</div>
+  </div>
+
+  <h2 id="approach"><span class="num">04</span>Our Approach: V0 &rarr; V1 &rarr; V2</h2>
+  <p class="lede">We start with capture — deliberately "dumb" at first — and layer in intelligence and governance as we go.</p>
+
+  <div class="pipeline">
+    <div class="pipe-step"><div class="n">V0 &middot; NOW</div><div class="t">Capture &amp; connect</div><div class="d">Pull knowledge automatically from core sources into one connected store</div></div>
+    <div class="pipe-arrow">&rarr;</div>
+    <div class="pipe-step"><div class="n">V1 &middot; NEXT</div><div class="t">Surface to the right people</div><div class="d">Search, rank, and filter so the right person sees the right answer</div></div>
+    <div class="pipe-arrow">&rarr;</div>
+    <div class="pipe-step"><div class="n">V2 &middot; LATER</div><div class="t">Agents take action</div><div class="d">Agents use the knowledge layer to actually do things, not just answer</div></div>
+  </div>
+
+  <h3><span class="badge v0">V0</span> Capture first — get knowledge flowing automatically</h3>
+  <p>The single most important near-term decision: <strong>focus first on capturing knowledge automatically and at scale</strong>, rather than starting with access control or perfect filtering. The goal is to avoid a world where people have to manually upload and maintain documents one at a time — we want data flowing in on its own, from day one.</p>
+  <p>V0 is intentionally "dumb" in one specific way: it ingests broadly first. Filters, approvals, and stricter guardrails get layered on in later phases, once we can see what's actually flowing through the system and what needs tightening.</p>
+
+  <h3><span class="badge v1">V1</span> Surface the right knowledge to the right people</h3>
+  <p>Once content is flowing in, V1 is about making sure people (and eventually agents) get the right answer, not just <em>an</em> answer — combining keyword and meaning-based search, ranking by how authoritative and fresh a source is, and filtering by what the requester is allowed to see.</p>
+
+  <h3><span class="badge v2">V2</span> Agents take action</h3>
+  <p>Once V1 is proven, the same knowledge layer becomes the foundation for AI agents that don't just answer questions but take governed actions on Landmark's behalf (e.g. creating a ticket, updating a record) — always least-privilege, and with human approval where it matters.</p>
+
+  <div class="callout warn">
+    <div class="icon">&#9888;</div>
+    <div><strong>A deliberate sequencing choice:</strong> identity and authorization are important and will absolutely be built — but they are <em>not</em> the starting layer. Making access control the first slide or the first implementation dependency risks stalling progress before anything useful exists. We build capture first, prove the value, and mature governance in step with it — not as a blocking prerequisite.</div>
+  </div>
+
+  <h2 id="scope"><span class="num">05</span>What's In Scope First (and What's Not, Yet)</h2>
+  <p class="lede">We are not trying to solve every source or every data type in version one — being explicit about exclusions is part of the design.</p>
+
+  <h3>In scope for the first version</h3>
+  <table>
+    <tr><th>Source</th><th>How it comes in</th></tr>
+    <tr><td><strong>SharePoint documents</strong></td><td>The most practical starting point — a business function points us at a SharePoint location, and a scheduled connector automatically pulls new or updated content from it.</td></tr>
+    <tr><td><strong>Azure DevOps</strong> (wikis + work items)</td><td>Same scheduled-connector model, covering CodeWiki pages and work items.</td></tr>
+    <tr><td><strong>Recorded Teams meetings / transcripts</strong></td><td>Recorded meetings are associated with a business function based on who was in them, and brought into that domain's context.</td></tr>
+    <tr><td><strong>Manual upload (fallback)</strong></td><td>A fallback path for content that isn't in an automatically-connected source yet.</td></tr>
+  </table>
+
+  <h3>Deliberately out of scope or deferred for now</h3>
+  <ul>
+    <li>Videos stored in SharePoint (for now)</li>
+    <li>Outlook shared mailboxes</li>
+    <li>ERP / CRM / business records</li>
+    <li>People / performance data</li>
+    <li>Certain restricted, commercial, or contract-style content, which will need explicit exclusion rules</li>
+  </ul>
+  <p style="font-size:13.5px; color:var(--muted);">Not everything should end up in the knowledge base — defining what's excluded is as much a part of the design as defining what's included.</p>
+
+  <h2 id="options"><span class="num">06</span>Build vs. Open Source vs. Buy</h2>
+  <p class="lede">We're evaluating three paths in parallel rather than committing to one before we've learned anything from a real POC.</p>
+
+  <div class="option-grid">
+    <div class="option-card">
+      <h4>&#128736; Build in-house</h4>
+      <div class="cost">Cost: engineering time, ongoing ownership</div>
+      <ul>
+        <li class="pro">Full control over data handling, security posture, and roadmap</li>
+        <li class="pro">Tailored exactly to Landmark's sources and domains</li>
+        <li class="con">Slowest to a working v1; we own every bug</li>
+        <li class="con">Requires sustained engineering investment to maintain</li>
+      </ul>
+    </div>
+    <div class="option-card">
+      <h4>&#128296; Use open source</h4>
+      <div class="cost">Indicative cost: $0 self-hosted &middot; ~$16&ndash;20/seat/mo cloud &middot; custom for enterprise tier</div>
+      <ul>
+        <li class="pro">Faster to a working prototype — connectors and retrieval patterns already exist</li>
+        <li class="pro">No licensing cost to self-host; data stays in our environment</li>
+        <li class="con">May need real customization for Landmark-specific sources/domains</li>
+        <li class="con">Support depends on community/project health, not a vendor SLA</li>
+      </ul>
+    </div>
+    <div class="option-card">
+      <h4>&#128179; Buy commercial</h4>
+      <div class="cost">Cost: recurring license / seat fees</div>
+      <ul>
+        <li class="pro">Fastest time-to-value; vendor handles maintenance and support</li>
+        <li class="pro">Enterprise-grade support and SLAs out of the box</li>
+        <li class="con">Ongoing license cost that scales with usage/seats</li>
+        <li class="con">Less control over data handling, roadmap, and customization</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Open-source options we're evaluating in parallel</h3>
+  <table>
+    <tr><th>Project</th><th>What it is</th><th>License / cost</th><th>Relevant to us because</th></tr>
+    <tr>
+      <td><strong>Onyx</strong><br/><span style="font-size:12px; color:var(--muted);">github.com/onyx-dot-app/onyx</span></td>
+      <td>Self-hostable AI chat platform connected to company knowledge — RAG, agents, 40+ pre-built connectors (SharePoint, Confluence, Jira, Google Drive, Slack, GitHub, and more), permission-syncing on supported connectors.</td>
+      <td>Community Edition: <strong>free, MIT license</strong>, self-hosted. Cloud: <strong>~$16&ndash;20/seat/month</strong>. Enterprise tier (adds permission-sync, SSO, etc.): custom pricing.</td>
+      <td>Closest match to our V0/V1 needs out of the box — a SharePoint connector with permission-sync already exists, which is exactly our first-source priority.</td>
+    </tr>
+    <tr>
+      <td><strong>Semantica</strong><br/><span style="font-size:12px; color:var(--muted);">github.com/semantica-agi/semantica</span></td>
+      <td>Graph-native infrastructure for context and accountable AI — turns unstructured content into a governed, explainable, auditable knowledge graph for AI agents.</td>
+      <td><strong>Free, MIT license.</strong> Very early-stage project (first stable release recently) — smaller community, connector maturity still unproven.</td>
+      <td>Directly overlaps with our source-of-truth/graph layer (Apache AGE) — worth prototyping to see if it accelerates that specific piece rather than the whole platform.</td>
+    </tr>
+  </table>
+  <p style="font-size:13px; color:var(--muted);"><strong>Indicative cost note:</strong> figures above are publicly listed list prices as of this writing, not a negotiated quote — real pricing (seats needed, enterprise tier, support contract) should be confirmed directly with each vendor/project before any commitment. The in-house build column has no license cost, but its "cost" is engineering time and ongoing ownership, which we haven't sized yet.</p>
+
+  <div class="callout good">
+    <div class="icon">&#9989;</div>
+    <div><strong>Direction agreed:</strong> prototype with <strong>Onyx</strong> (closest fit to our V0 source list, including a SharePoint connector) alongside the in-house build, and keep an eye on <strong>Semantica</strong> specifically for the graph/context layer. A concrete build-vs-buy-vs-OSS recommendation comes <em>after</em> the POC, not before it.</div>
+  </div>
+
+  <h2 id="poc"><span class="num">07</span>The POC — What We're Doing Next</h2>
+  <p class="lede">A basic, narrow POC to learn what works before committing to a direction.</p>
+
+  <div class="grid2">
+    <div class="stat-card">
+      <div class="label">POC domain</div>
+      <div class="value">R&amp;D — SharePoint + Azure DevOps + Teams transcripts</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Parallel track</div>
+      <div class="value">Explore the open-source option alongside the in-house build</div>
+    </div>
+  </div>
+
+  <h3>Next steps coming out of the review</h3>
+  <ol>
+    <li>Rewrite the problem statement in simple English with the V0/V1/V2 framing <span class="badge poc">this doc</span></li>
+    <li>Simplify the deck for a business audience, keeping technical depth as backup material <span class="badge poc">this doc</span></li>
+    <li>Add 3–4 concrete usage examples, especially for R&amp;D <span class="badge poc">this doc</span></li>
+    <li>Add a build vs. open source vs. buy comparison, with pros/cons and indicative cost <span class="badge poc">this doc</span></li>
+    <li>Start a basic POC for the R&amp;D domain</li>
+    <li>Prototype with <strong>Onyx</strong> (self-hosted) in parallel with the in-house build; keep an eye on <strong>Semantica</strong> for the graph/context layer specifically</li>
+    <li>Apply the recommended chunking strategy below before implementation begins <span class="badge poc">this doc</span></li>
+    <li>Bring back a concrete build/open-source/buy recommendation after experimentation</li>
+    <li>Polish and share the deck</li>
+  </ol>
+
+  <h2 id="risks"><span class="num">08</span>Open Questions &amp; What We're Still Learning</h2>
+  <ul>
+    <li><strong>Relevance at ingestion.</strong> If a SharePoint folder has a mix of relevant and irrelevant documents, how does the system know what matters? Our current direction: ingest broadly first, then filter and refine — rather than trying to perfectly determine relevance upfront.</li>
+    <li><strong>Some retrieval/answer behaviors are unproven until we build the POC.</strong> We won't know how well ranking, freshness-weighting, and grounding actually perform in practice until we test it on real Landmark content.</li>
+    <li><strong>Expectation-setting.</strong> The deck (and any demo) needs to be explicit about what the system can answer today and what it can't — so nobody walks away thinking it already covers sources or domains we haven't built yet.</li>
+  </ul>
+
+  <div class="appendix-banner">
+    <strong>Everything below this point is technical backup material</strong> — the detailed data flow, storage design, and technology choices. It's here for anyone who wants to go deeper (engineering, architecture review), but it is deliberately not the lead of this document.
+  </div>
+
+  <h2 id="appendix"><span class="num">09</span>Appendix: Technical Deep Dive</h2>
+  <p class="lede">The mechanics behind V0 (capture) and the early part of V1 (retrieval), for readers who want the implementation-level detail.</p>
+
+  <h3>Core stack under evaluation</h3>
+  <table>
+    <tr><th>Concern</th><th>Direction under evaluation</th><th>Notes</th></tr>
+    <tr><td>Identity &amp; SSO</td><td>Azure AD / Entra ID (people); Entra app registrations (agents/services)</td><td>Deferred as the first build dependency (see §04) — designed for later, not blocking capture</td></tr>
+    <tr><td>Ingestion queue</td><td>Celery + Redis</td><td>Scheduled connector pulls, decoupled from query path</td></tr>
+    <tr><td>Object storage</td><td>Azure Blob Storage</td><td>Raw source files land here first</td></tr>
+    <tr><td>Parsing / OCR</td><td>Unstructured.io + Tesseract</td><td>docx/pdf/html parsing; OCR for scans</td></tr>
+    <tr><td>Chunking</td><td>LangChain — <strong>semantic chunking</strong> (recommended strategy, see below)</td><td>Groups content by meaning/topic boundary rather than fixed size</td></tr>
+    <tr><td>Embeddings model</td><td><code>landmark-text-embedding-3-large</code> (Azure OpenAI)</td><td>Vectorizes each chunk; only changed content is re-embedded</td></tr>
+    <tr><td>Vector store</td><td>pgvector (PostgreSQL)</td><td>Semantic/meaning-based retrieval</td></tr>
+    <tr><td>Keyword store</td><td>Postgres FTS (BM25)</td><td>Runs in the same PostgreSQL engine as pgvector</td></tr>
+    <tr><td>Metadata store</td><td>PostgreSQL</td><td>System of record for chunk metadata, ownership, versioning</td></tr>
+    <tr><td>Graph store</td><td>Apache AGE (PostgreSQL extension)</td><td>Document/topic relationships; matures alongside V1</td></tr>
+    <tr><td>Answer-generation LLM</td><td>GPT-5.5 mini (Azure OpenAI)</td><td>Grounded answers with citations, never fine-tuned on raw enterprise data</td></tr>
+    <tr><td>Orchestration</td><td>LangChain</td><td>Chunking, hybrid retrieval, citation rendering</td></tr>
+    <tr><td>API / front door</td><td>FastAPI (REST/GraphQL)</td><td>—</td></tr>
+    <tr><td>Chat UI</td><td>Next.js (React)</td><td>Primary interface for people during the POC</td></tr>
+    <tr><td>Hosting</td><td>AKS (Azure Kubernetes Service)</td><td>—</td></tr>
+  </table>
+
+  <h3>V0 — Capture, in detail</h3>
+  <p>Connectors pull content from source systems on a schedule. Raw content lands first in storage; only new or changed content moves forward for processing (chunk, tag, embed, store). This 2-phase model keeps ingestion resilient — a stalled or slow processing step never causes us to lose or block on a source pull.</p>
+
+  <h4>Recommended chunking strategy</h4>
+  <p><strong>Semantic chunking</strong> — splitting documents at natural topic/meaning boundaries rather than a fixed character/token count — is the recommended default for our mixed, long-form enterprise content (design docs, wikis, meeting transcripts):</p>
+  <ul>
+    <li>Fixed-size chunking is simplest but breaks sentences and topics mid-thought, which measurably hurts retrieval accuracy on long, multi-topic documents like ours (published benchmarks show a large accuracy gap — e.g. one 2025 clinical-domain study found ~87% vs. ~13% accuracy for topic-aligned vs. fixed-size chunking on multi-topic source material).</li>
+    <li>Semantic chunking groups sentences/passages by meaning, preserving context and cutting far fewer ideas in half — the better default whenever documents are long, mixed-topic, or narrative-style (design docs, wikis, meeting transcripts all qualify).</li>
+    <li><strong>Meeting transcripts</strong> specifically should chunk by topic/decision boundary (not fixed time windows), so a single chunk maps to one coherent discussion point rather than an arbitrary 5-minute slice.</li>
+    <li>Fixed-size/recursive chunking remains acceptable for short, already-focused documents (e.g. a single-topic SOP) where chunking adds little value — not every source needs the heavier semantic approach.</li>
+    <li><strong>Recommendation:</strong> start with semantic chunking via LangChain's semantic chunker for SharePoint/DevOps documents and Teams transcripts, and treat this as the default unless a specific source type proves fixed-size is just as effective at lower cost during the POC.</li>
+  </ul>
+
+  <div class="flow-diagram">
+    <div class="flow-title">V0 Capture — Ingestion Flow</div>
+
+    <div class="flow-group">
+      <div class="fg-label">1 &middot; Scheduled connector pull</div>
+      <div class="flow-row">
+        <div class="flow-box poc"><div class="fn">CONNECTOR</div><div class="ft">SharePoint</div><div class="fd">Microsoft Graph API</div></div>
+        <div class="flow-box poc"><div class="fn">CONNECTOR</div><div class="ft">Azure DevOps</div><div class="fd">wikis / work items</div></div>
+        <div class="flow-box poc"><div class="fn">CONNECTOR</div><div class="ft">Teams transcripts</div><div class="fd">associated by function/attendees</div></div>
+        <div class="flow-box poc"><div class="fn">FALLBACK</div><div class="ft">Manual upload</div><div class="fd">for content not yet auto-connected</div></div>
+      </div>
+    </div>
+    <div class="flow-vconnector">&darr;</div>
+    <div class="flow-row">
+      <div class="flow-store"><div class="ft">Azure Blob</div><div class="fd">raw content lands here first</div></div>
+      <div class="flow-hconnector">&rarr;</div>
+      <div class="flow-diamond"><div class="ft">New or changed?</div></div>
+    </div>
+    <div class="flow-vconnector">&darr; yes (no &rarr; skip, nothing further happens)</div>
+    <div class="flow-group">
+      <div class="fg-label">2 &middot; Transform (only new/changed content)</div>
+      <div class="flow-row">
+        <div class="flow-box poc"><div class="fn">CHUNK</div><div class="ft">Split into passages</div><div class="fd">semantic chunking (recommended — see above)</div></div>
+        <div class="flow-box poc"><div class="fn">TAG</div><div class="ft">Metadata per chunk</div><div class="fd">source, owner, function, timestamps</div></div>
+        <div class="flow-box poc"><div class="fn">EMBED</div><div class="ft">Vectorize</div><div class="fd">landmark-text-embedding-3-large</div></div>
+      </div>
+    </div>
+    <div class="flow-vconnector">&darr;</div>
+    <div class="flow-group">
+      <div class="fg-label">3 &middot; Store for retrieval (parallel writes)</div>
+      <div class="flow-row">
+        <div class="flow-store"><div class="ft">Raw store</div><div class="fd">original file</div></div>
+        <div class="flow-store"><div class="ft">Vector store</div><div class="fd">semantic retrieval</div></div>
+        <div class="flow-store"><div class="ft">Keyword store</div><div class="fd">BM25 search</div></div>
+        <div class="flow-store"><div class="ft">Graph store</div><div class="fd">relationships</div></div>
+        <div class="flow-store"><div class="ft">Audit / version store</div><div class="fd">history + provenance</div></div>
+      </div>
+    </div>
+
+    <div class="flow-legend">
+      <span><i class="lp"></i> POC scope</span>
+      <span><i class="le"></i> Later maturity</span>
+    </div>
+  </div>
+
+  <h3>V1 — Retrieval, in detail</h3>
+  <p>Retrieval is a multi-step pipeline, not a single search-and-answer call: understand the query, run semantic and keyword search in parallel, combine the results, filter by authorization, re-rank favoring fresher and more canonical sources, and only then hand the authorized context to the LLM to generate a grounded, cited answer.</p>
+
+  <div class="flow-diagram">
+    <div class="flow-title">V1 Retrieval — Query Flow</div>
+
+    <div class="flow-group">
+      <div class="fg-label">1 &middot; Understand the query</div>
+      <div class="flow-row">
+        <div class="flow-box poc"><div class="fn">QUERY</div><div class="ft">User / agent question</div><div class="fd">plain-language input</div></div>
+      </div>
+    </div>
+    <div class="flow-vconnector">&darr;</div>
+    <div class="flow-group">
+      <div class="fg-label">2 &middot; Search (parallel)</div>
+      <div class="flow-row">
+        <div class="flow-box poc"><div class="fn">SEMANTIC</div><div class="ft">Vector search</div><div class="fd">meaning-based matching</div></div>
+        <div class="flow-box poc"><div class="fn">KEYWORD</div><div class="ft">BM25-style search</div><div class="fd">exact-term matching</div></div>
+      </div>
+    </div>
+    <div class="flow-vconnector">&darr;</div>
+    <div class="flow-row">
+      <div class="flow-box poc" style="flex:1 1 260px;"><div class="fn">COMBINE</div><div class="ft">Merge both result sets</div><div class="fd">one ranked candidate list</div></div>
+    </div>
+    <div class="flow-vconnector">&darr;</div>
+    <div class="flow-row">
+      <div class="flow-diamond" style="flex:0 0 260px; background:var(--accent-soft); border-color:var(--accent);"><div class="ft" style="color:var(--accent);">Authorization filter</div></div>
+    </div>
+    <div class="flow-vconnector">&darr; only authorized content proceeds</div>
+    <div class="flow-row">
+      <div class="flow-box poc" style="flex:1 1 320px;"><div class="fn">RE-RANK</div><div class="ft">Favor fresher + canonical sources</div><div class="fd">recency and source-authority weighting</div></div>
+      <div class="flow-hconnector">&rarr;</div>
+      <div class="flow-box poc" style="flex:1 1 260px;"><div class="fn">GENERATE</div><div class="ft">Grounded answer</div><div class="fd">GPT-5.5 mini, cited sources only</div></div>
+    </div>
+
+    <div class="flow-legend">
+      <span><i class="lp"></i> POC scope</span>
+      <span><i class="le"></i> Later maturity</span>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Landmark Context Layer for Teams &amp; Agents &middot; Leadership Overview v2 &middot; incorporates manager review feedback &middot; companion to the technical HLD.
+</footer>
+
+<script>
+  function activeTheme(){
+    const explicit = document.documentElement.getAttribute('data-theme');
+    if (explicit) return explicit;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function toggleTheme(){
+    const cur = activeTheme();
+    document.documentElement.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+  }
+</script>
+
+</body>
+</html>

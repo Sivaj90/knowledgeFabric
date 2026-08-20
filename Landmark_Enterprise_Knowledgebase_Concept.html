@@ -1,0 +1,301 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<title>Landmark Enterprise Knowledge Fabric</title>
+<style>
+ body { font-family: 'Segoe UI','Calibri',sans-serif; font-size: 11pt; color: #1f2733; line-height: 1.4; }
+ h1 { font-family: 'Segoe UI Semibold','Calibri',sans-serif; font-size: 26pt; color: #12395c; margin-bottom: 2pt; }
+ .subtitle { font-size: 13pt; color: #c2185b; font-weight: 600; margin-top: 0; }
+ .lede { font-size: 11.5pt; color: #33424f; }
+ h2 { font-family: 'Segoe UI Semibold','Calibri',sans-serif; font-size: 16pt; color: #12395c; border-bottom: 2px solid #c2185b; padding-bottom: 3pt; margin-top: 22pt; }
+ h3 { font-family: 'Segoe UI Semibold','Calibri',sans-serif; font-size: 12.5pt; color: #1b5175; margin-top: 14pt; margin-bottom: 4pt; }
+ .q { font-weight: 700; color: #12395c; margin-bottom: 2pt; margin-top: 12pt; }
+ .a { margin-top: 0; }
+ table { border-collapse: collapse; width: 100%; margin: 8pt 0 12pt 0; font-size: 10pt; }
+ th { background: #12395c; color: #ffffff; text-align: left; padding: 6pt 8pt; border: 1px solid #0d2b45; font-weight: 600; }
+ td { padding: 6pt 8pt; border: 1px solid #c9d3dc; vertical-align: top; }
+ tr:nth-child(even) td { background: #f2f6fa; }
+ .tag { background: #12395c; color:#fff; padding: 1pt 6pt; border-radius: 3px; font-size: 9pt; font-weight:600; }
+ .callout { background: #f6eef2; border-left: 4px solid #c2185b; padding: 8pt 12pt; margin: 10pt 0; }
+ ul, ol { margin-top: 4pt; }
+ li { margin-bottom: 3pt; }
+ .muted { color: #667585; font-size: 10pt; }
+ .pillrow td { text-align:center; font-weight:600; }
+ /* flow diagram */
+ .flowtbl { border-collapse: collapse; width: 100%; margin: 6pt 0 4pt 0; }
+ .flowtbl td { border: none; padding: 0; }
+ .fstage { background:#e8eef4; border:1.5px solid #12395c; padding:7pt 10pt; font-size:9.5pt; text-align:center; }
+ .ftrig { background:#12395c; color:#ffffff; border-color:#0d2b45; font-weight:600; }
+ .fgate { background:#f6eef2; border:1.5px solid #c2185b; font-weight:600; font-size:9.5pt; padding:7pt 10pt; text-align:center; }
+ .faud  { background:#eef4ee; border:1.5px solid #2f7d32; font-size:9.5pt; padding:7pt 10pt; text-align:center; }
+ .fans  { background:#fbf4e9; border:1.5px solid #b7791f; font-size:9.5pt; padding:7pt 10pt; text-align:center; font-weight:600; }
+ .farrow { text-align:center; color:#c2185b; font-weight:700; font-size:12pt; padding:1pt 0; }
+ .flabel { text-align:center; color:#667585; font-size:8.5pt; font-style:italic; padding:1pt 0; }
+ .fanout { width:100%; border-collapse:collapse; }
+ .fanout td { border:1.5px solid #1b5175; background:#f2f6fa; text-align:center; padding:6pt 4pt; font-size:8.5pt; width:25%; }
+ .fbtitle { font-weight:700; color:#12395c; }
+ .fsmall { font-size:7.5pt; color:#667585; }
+ .diagcap { font-size:9.5pt; color:#12395c; font-weight:700; margin:12pt 0 2pt 0; }
+</style>
+</head>
+<body>
+
+<h1>Landmark Enterprise Knowledge Fabric</h1>
+<p class="subtitle">A Knowledge Fabric and Context Layer for Teams and AI Agents</p>
+<p class="lede"><b>The one-line idea:</b> a single place where the knowledge scattered across the enterprise is automatically captured, connected, and made easy to ask questions of &mdash; and, over time, safe for AI agents to act on. This document explains the problem, the approach in plain terms, worked examples of the value, and the options for how we deliver it.</p>
+
+<hr>
+
+<h2>1. The problem we are solving</h2>
+<p>Knowledge inside the organisation is real, but it is trapped. It lives in SharePoint sites, Teams chats and meeting recordings, wikis, work items, email threads, and support tickets. No single person can hold all of it, and there is no easy way to simply <i>ask a question and get a reliable answer</i>.</p>
+
+<p class="q">Where does our knowledge actually live today?</p>
+<p class="a">Everywhere and nowhere &mdash; scattered across SharePoint, team sites, meeting recordings, wikis, work items and mail. It is created constantly but never brought together.</p>
+
+<p class="q">Can anyone ask a question across all of it and get an answer?</p>
+<p class="a">No. There is no unified way to ask a question and get a grounded answer. You have to know who to ask and where to look, and the person who knows may have moved on.</p>
+
+<p class="q">When two documents disagree, which one is right?</p>
+<p class="a">Nobody knows. Conflicting and stale information is rarely reconciled, so people act on whatever they happen to find first.</p>
+
+<p class="q">What does this cost us?</p>
+<p class="a">A new leader joining a function cannot quickly understand what the team has been doing. Work gets repeated because no one knew it already existed. Decisions are slowed by the hunt for context.</p>
+
+<div class="callout"><b>This is an enterprise-wide problem, not a single team's.</b> It shows up in every business and every function. We are keeping the problem statement broad on purpose.</div>
+
+<h2>2. What we are building</h2>
+<p>Think of it as a <b>knowledge fabric</b> for the organisation &mdash; a shared context layer that both <b>people</b> and <b>AI agents</b> can query to understand the enterprise.</p>
+
+<p class="q">What is it, in one sentence?</p>
+<p class="a">A platform that continuously collects the organisation's knowledge, connects it into contextual information, and lets any person, application, or AI agent ask a question and get a grounded, permission-aware answer.</p>
+
+<p class="q">What makes it different from a search box or a document library?</p>
+<p class="a">A document library stores pages for people to open and read. This connects the knowledge, understands the question behind the words, and returns a direct answer with its sources &mdash; and only the parts the asker is allowed to see.</p>
+
+<p class="q">Why now?</p>
+<p class="a">Because the same connected knowledge that answers a person's question is exactly what an AI agent needs to do useful work. Building this layer once unlocks both.</p>
+
+<h2>3. The journey: three simple steps (V0, V1, V2)</h2>
+<p>We deliver value in three stages. Each stage stands on its own and is useful before the next begins.</p>
+
+<table>
+<tr><th style="width:12%">Stage</th><th style="width:28%">Goal</th><th>What it means in plain English</th></tr>
+<tr><td><span class="tag">V0</span> Capture &amp; Connect</td><td>Bring all the knowledge together and connect it.</td><td>Pull content in from all our systems automatically and turn it into connected, contextual information &mdash; not a pile of files, but knowledge that knows how it relates.</td></tr>
+<tr><td><span class="tag">V1</span> Surface &amp; Answer</td><td>Get the right information to the right people, at the right level.</td><td>Ask a question and get a grounded answer &mdash; showing each person only what they are permitted to see.</td></tr>
+<tr><td><span class="tag">V2</span> Enable Action</td><td>Let agents act on the knowledge.</td><td>Once the knowledge is connected and trusted, AI agents can take safe, governed actions on top of it &mdash; with human review where it matters.</td></tr>
+</table>
+
+<div class="callout"><b>The hardest part is the first step.</b> Collection at enterprise scale is a big problem in itself. We start there, prove it, then move up to answering and, later, acting.</div>
+
+<h2>4. What it gives each audience</h2>
+<h3>For teams</h3>
+<p>A single place to ask &mdash; "what has my team worked on," "has anyone looked at this before," "what's the latest on X" &mdash; and get an answer drawn from the team's own documents and meetings, in seconds instead of hours.</p>
+<h3>For AI agents and applications</h3>
+<p>A queryable context layer that any agent or app can plug into to understand the enterprise, instead of every project rebuilding its own knowledge store.</p>
+<h3>How freshness is maintained</h3>
+<p>Knowledge is captured continuously and automatically. When a document changes, the system notices and refreshes only what changed &mdash; so answers stay current without anyone re-uploading anything.</p>
+<h3>How human control is kept</h3>
+<p>Nothing is blindly trusted. Content flows in automatically, but what gets surfaced, and any action an agent proposes, passes through review and approval. The system augments people; it does not run unchecked.</p>
+
+<h2>5. Knowledge base vs. knowledge fabric &mdash; the difference</h2>
+<table>
+<tr><th style="width:50%">A knowledge base</th><th style="width:50%">A knowledge fabric (what we are building)</th></tr>
+<tr><td>A store of pages for people to consult.</td><td>A connected context layer that routes a request to the relevant, approved knowledge and answers it.</td></tr>
+<tr><td>You go and find the document.</td><td>You ask a question; it finds and joins the pieces for you.</td></tr>
+<tr><td>Every page is treated the same.</td><td>Each piece carries its owner, freshness, and who is allowed to see it.</td></tr>
+<tr><td>Passive: it waits to be read.</td><td>Active: it can eventually drive workflows and agent actions.</td></tr>
+</table>
+
+<h2>6. What good looks like (how we measure success)</h2>
+<p>We judge the solution by whether it genuinely helps people work, not by how much text it generates.</p>
+<ul>
+<li><b>Context recovery time</b> &mdash; how fast someone can get up to speed on a topic or a team's work.</li>
+<li><b>First-pass answer quality</b> &mdash; how good and usable the answer is on the first try, with the right sources.</li>
+<li><b>Misses prevented</b> &mdash; catching things people would otherwise have overlooked or duplicated.</li>
+<li><b>Repeat use</b> &mdash; people coming back because it is genuinely useful.</li>
+</ul>
+<p class="muted">Deliberately <i>not</i> a measure of success: volume of generated words.</p>
+
+<h2>7. The operating model behind a useful answer</h2>
+<p>A trustworthy answer needs a few things behind it. In plain terms:</p>
+<ul>
+<li><b>A clear topic and boundary</b> &mdash; what this knowledge space covers, and what it does not.</li>
+<li><b>A source registry</b> &mdash; each source has an owner, a freshness signal, and access rules.</li>
+<li><b>Approved source material</b> &mdash; a way to distinguish trusted, canonical content from informal notes.</li>
+<li><b>Structured knowledge and defined routes</b> &mdash; content is organised so a question can be routed to the right, approved context.</li>
+</ul>
+
+<div class="callout"><b>Automation first, control second.</b> The primary goal is to get data flowing in automatically &mdash; we must not depend on people manually uploading files. So the first layer is a "capture everything" layer: anything that can be connected, comes in. A second layer then filters and adds guardrails &mdash; deciding what should be indexed, surfaced, or passed to the next stage. We start permissive and tighten with guardrails over time, rather than blocking ourselves at the start.</p>
+</div>
+
+<h2>8. What we will capture first</h2>
+<p>For the first version we focus on a small, high-value set of sources:</p>
+<table>
+<tr><th style="width:30%">Source</th><th>What comes in</th></tr>
+<tr><td><b>SharePoint</b></td><td>Documents, briefs, and SOPs &mdash; the core written knowledge.</td></tr>
+<tr><td><b>Azure DevOps</b></td><td>Wikis and work items.</td></tr>
+<tr><td><b>Teams meetings</b></td><td>Recorded meeting transcripts. If a meeting was recorded, it was worth keeping &mdash; so recorded sessions belonging to the function become part of its knowledge.</td></tr>
+<tr><td><b>Manual upload</b></td><td>A simple way for people to add a document directly when needed.</td></tr>
+</table>
+
+<h3>What we deliberately leave out (for now)</h3>
+<ul>
+<li><b>Commercial and sensitive material</b> &mdash; contracts, finance, and anything restricted in visibility.</li>
+<li><b>People data</b> &mdash; ratings, performance feedback, and similar.</li>
+<li><b>Business tools</b> such as ERP/CRM records, and shared mailboxes &mdash; not in scope.</li>
+<li><b>Video and audio files</b> &mdash; we focus on documents and transcripts first; heavy media comes later.</li>
+</ul>
+<p class="muted">Being explicit about exclusions is part of the design: we will only cover operational knowledge, not commercial or personal data.</p>
+
+<h2>9. How it works &mdash; two simple journeys</h2>
+<p>The whole platform is really just two journeys.</p>
+
+<h3>Journey 1 &mdash; Bringing knowledge in</h3>
+<ol>
+<li><b>Scheduled pull.</b> On a schedule, connectors reach into a source (for example, a SharePoint location a team points us to) and collect new or updated documents automatically.</li>
+<li><b>Keep the original.</b> Every file is first stored exactly as it arrived, organised by day, source, and type.</li>
+<li><b>New or changed?</b> The system checks whether a document is genuinely new or has changed. Only changed content is processed further &mdash; nothing is redone needlessly.</li>
+<li><b>Split, tag, connect, store.</b> Each document is split into meaningful passages; each passage is tagged and linked to related knowledge; then it is stored in a form that can be searched and answered from.</li>
+</ol>
+
+<h3>Journey 2 &mdash; Getting an answer</h3>
+<ol>
+<li><b>Ask.</b> A person, app, or agent asks a question through a simple interface.</li>
+<li><b>Understand.</b> The system works out what the question is really asking.</li>
+<li><b>Search two ways at once.</b> It searches by <i>meaning</i> and by <i>exact keywords</i> in parallel, so both "what I meant" and "the exact term I used" are covered.</li>
+<li><b>Apply permissions.</b> Before anything else, results the asker is not allowed to see are dropped &mdash; permission is applied up front, not after the fact.</li>
+<li><b>Rank by authority and freshness.</b> The most trusted and most recent sources rise to the top; canonical content outranks informal notes.</li>
+<li><b>Answer with sources.</b> A grounded answer is returned with citations, plus a short note on why the asker is seeing it.</li>
+</ol>
+
+<h2>10. Examples that show the value</h2>
+<p>The clearest way to understand the value is to see it used. Take the R&amp;D function: we capture its documents, designs, work items, and recorded meetings into one context layer. A leader can then ask:</p>
+
+<table>
+<tr><th style="width:8%">Level</th><th style="width:46%">Question</th><th>What the answer looks like</th></tr>
+<tr><td>1</td><td>"What has R&amp;D been working on over the last month?"</td><td>A summary pulled from meetings and documents &mdash; e.g. the BRDs and designs created, drawn straight from the source material.</td></tr>
+<tr><td>2</td><td>"Tell me more about the enterprise-knowledge work &mdash; what are they doing and what state is it in?"</td><td>A deeper drill-down on one topic surfaced in the summary.</td></tr>
+<tr><td>3</td><td>"Have they discussed how to optimise cost for tokens?"</td><td>A direct answer on whether and where a specific topic was raised, with the sources.</td></tr>
+<tr><td>4</td><td>"What are the top 10 topics my teams are working on across functions?"</td><td>A cross-cutting view a leader could not easily assemble by hand.</td></tr>
+</table>
+
+<div class="callout"><b>The leadership use case.</b> A new leader can log in to a function's knowledge space and ask, "summarise what this team has done over the last six months" &mdash; and get a real answer instead of scheduling weeks of catch-up meetings.</div>
+
+<h2>11. What it can &mdash; and cannot &mdash; give</h2>
+<table>
+<tr><th style="width:50%">It can</th><th style="width:50%">It cannot (by design or by limit)</th></tr>
+<tr><td>Answer operational questions about what teams are working on, from the knowledge that has been captured.</td><td>Answer from data that was never brought in &mdash; if it is not captured, it cannot be retrieved.</td></tr>
+<tr><td>Summarise, drill down, and connect topics across sources.</td><td>Surface commercial or sensitive material (contracts, finance) or personal data &mdash; these are excluded.</td></tr>
+<tr><td>Stay current as documents change.</td><td>Guarantee coverage where a source cannot be automatically integrated yet.</td></tr>
+</table>
+<p><b>The main challenge is honest and simple:</b> the value depends on getting the knowledge in. The more we can integrate sources automatically, the more the system can answer.</p>
+
+<h2>12. How we deliver it &mdash; three routes</h2>
+<p>We are evaluating three ways to deliver this, and will recommend based on a proof of concept.</p>
+<table>
+<tr><th style="width:16%">Route</th><th>What it means</th><th style="width:26%">Trade-off</th></tr>
+<tr><td><b>Build our own</b></td><td>Design and build the platform in-house for full control and a perfect fit.</td><td>Most control; higher cost and longer time.</td></tr>
+<tr><td><b>Open source</b></td><td>Stand on an existing open-source platform that already offers much of this &mdash; connectors for SharePoint and Teams, and the ability to link our identity and start asking questions.</td><td>Fast to try; some capability gaps to validate.</td></tr>
+<tr><td><b>Buy commercial</b></td><td>Adopt a leading commercial solution.</td><td>Fastest to capability; cost and fit to be assessed.</td></tr>
+</table>
+<p>We will experiment with the first two in parallel and price the third, then come back with a clear recommendation on which route delivers the most value fastest.</p>
+
+<h2>13. What happens next</h2>
+<ul>
+<li><b>Stand up a proof of concept</b> on the R&amp;D function first &mdash; three to four connectors, capture documents as-is, connect them, and enable retrieval with basic filters (by domain, or across everything).</li>
+<li><b>Explore build vs. open source vs. buy</b> in parallel, so the recommendation is grounded in real results.</li>
+<li><b>Play back every couple of weeks</b> &mdash; showing what works, what it can and cannot yet do, and the next increment.</li>
+<li><b>Line up further sources</b> for later &mdash; for example support tickets from ManageEngine, and other business feeds &mdash; each added through its own connector as we widen coverage.</li>
+</ul>
+
+<hr>
+
+<h2>Appendix A &mdash; How it works under the hood (abstracted)</h2>
+<p class="muted">Kept deliberately non-technical. This is the shape of the implementation behind the two journeys above; specific product and database choices are documented separately in the technical design.</p>
+
+<h3>A.1 Capture pipeline</h3>
+<ol>
+<li><b>Trigger</b> &mdash; a scheduled job (or a change notification from the source) starts a pull.</li>
+<li><b>Connect &amp; collect</b> &mdash; a per-source connector fetches content together with its native permission signal and metadata.</li>
+<li><b>Land the raw copy</b> &mdash; the original file is stored first, in buckets organised by day, source, and type.</li>
+<li><b>Detect change</b> &mdash; a content fingerprint decides new vs. unchanged, so only real changes are reprocessed.</li>
+<li><b>Prepare for retrieval</b> &mdash; documents are split into passages; each passage is tagged (topic, owner, freshness, access) and linked to related passages to form connected knowledge; then stored across the retrieval stores.</li>
+</ol>
+
+<h3>A.2 Retrieval pipeline</h3>
+<ol>
+<li><b>Understand the question</b> and search two ways in parallel &mdash; by meaning and by exact keyword.</li>
+<li><b>Apply the permission filter first</b> &mdash; anything the asker may not see is dropped before ranking, so it never reaches the answer step.</li>
+<li><b>Rank</b> the survivors by source authority and recency, and pull in directly related context where useful.</li>
+<li><b>Arbitrate</b> &mdash; where sources disagree, trusted and more recent sources take precedence; genuine conflicts are shown, not hidden.</li>
+<li><b>Answer</b> &mdash; produce a grounded answer strictly from the permitted, retrieved passages, with citations, and record the whole transaction for audit.</li>
+</ol>
+
+<h3>A.3 Detailed implementation flow (visual)</h3>
+<p class="muted">The two journeys above, shown end-to-end with the components that implement them. Product and store names are included here for the engineering view; the business sections deliberately keep these abstract.</p>
+
+<div class="diagcap">Figure A-1 &mdash; Capture &amp; ingestion flow (Journey 1: bringing knowledge in)</div>
+<table class="flowtbl">
+ <tr><td class="ftrig">1 &nbsp; TRIGGER &nbsp;&middot;&nbsp; Scheduled crawl (Celery beat) &nbsp;or&nbsp; change webhook (Graph change notification / Azure DevOps event hook)</td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="fstage">2 &nbsp; CONNECTORS &nbsp;&middot;&nbsp; SharePoint &amp; Teams via <b>Microsoft Graph API</b> &nbsp;&middot;&nbsp; Azure DevOps via <b>REST</b> &nbsp;&rarr;&nbsp; normalize to a common Document envelope (content + native ACL + metadata)</td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="fstage">3 &nbsp; QUEUE (Celery + Redis) &nbsp;+&nbsp; 4 &nbsp; RAW ARCHIVE &nbsp;&rarr;&nbsp; <b>Azure Blob</b> (bucketed by day / source / type)</td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="fgate">5 &nbsp; DEDUP GATE &nbsp;&middot;&nbsp; content-hash changed? &nbsp;&nbsp; unchanged &rarr; skip re-embed &nbsp;&middot;&nbsp; changed &rarr; process</td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="fstage">6 &nbsp; PROCESS per chunk &nbsp;&middot;&nbsp; Parse (Unstructured.io / Tesseract OCR) &rarr; Chunk (LangChain) &rarr; Classify tier + function &rarr; Embed (<b>text-embedding-3-large</b>)</td></tr>
+ <tr><td class="flabel">&#8595; &nbsp; parallel fan-out writes</td></tr>
+ <tr><td>
+   <table class="fanout"><tr>
+     <td><span class="fbtitle">Metadata</span><br>PostgreSQL<br><span class="fsmall">system of record</span></td>
+     <td><span class="fbtitle">Vector</span><br>pgvector<br><span class="fsmall">embeddings</span></td>
+     <td><span class="fbtitle">Keyword</span><br>Postgres FTS<br><span class="fsmall">BM25</span></td>
+     <td><span class="fbtitle">Graph</span><br>Apache AGE<br><span class="fsmall">nodes + edges</span></td>
+   </tr></table>
+ </td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="faud">7 &nbsp; GRAPH EDGES + AUDIT &nbsp;&middot;&nbsp; build relationships between chunks &nbsp;&middot;&nbsp; write append-only ingestion event</td></tr>
+</table>
+
+<div class="diagcap">Figure A-2 &mdash; Retrieval &amp; answer flow (Journey 2: getting an answer)</div>
+<table class="flowtbl">
+ <tr><td class="ftrig">1 &nbsp; ENTRY &nbsp;&middot;&nbsp; Next.js chat UI (people) &nbsp;&middot;&nbsp; FastAPI REST (apps) &nbsp;&middot;&nbsp; MCP server (agents)</td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="fstage">2 &nbsp; AUTHENTICATE &nbsp;&middot;&nbsp; Azure AD / Entra ID (OIDC) &nbsp;&middot;&nbsp; Entra app registration for agents</td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="fstage">3 &nbsp; MINT TOKEN &nbsp;&middot;&nbsp; signed JWT: role &middot; functions &middot; classification ceiling &middot; scopes &nbsp;(cached in Redis)</td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="fstage">4 &nbsp; UNDERSTAND QUERY &nbsp;&middot;&nbsp; rewrite / expand; decide if graph traversal is needed</td></tr>
+ <tr><td class="flabel">&#8595; &nbsp; candidate generation runs in parallel</td></tr>
+ <tr><td>
+   <table class="fanout"><tr>
+     <td style="width:50%"><span class="fbtitle">Vector search</span><br>pgvector<br><span class="fsmall">meaning / semantic</span></td>
+     <td style="width:50%"><span class="fbtitle">Keyword search</span><br>Postgres FTS (BM25)<br><span class="fsmall">exact terms / IDs</span></td>
+   </tr></table>
+ </td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="fgate">5 &nbsp; HARD AUTHORIZATION FILTER &nbsp;&middot;&nbsp; drop out-of-function / above-ceiling chunks <b>before ranking</b> &mdash; they never reach the LLM</td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="fstage">6 &nbsp; RANK &nbsp;&middot;&nbsp; RRF fusion + source authority + recency &nbsp;&rarr;&nbsp; (cross-encoder rerank &middot; graph expansion 1&ndash;2 hops)</td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="fstage">7 &nbsp; ARBITRATION &nbsp;&middot;&nbsp; canonical &gt; informal, recent &gt; old &nbsp;&middot;&nbsp; genuine conflicts surfaced, not hidden</td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="fans">8 &nbsp; ANSWER &nbsp;&middot;&nbsp; Azure OpenAI GPT-4.1 grounded RAG + citations</td></tr>
+ <tr><td class="farrow">&#8595;</td></tr>
+ <tr><td class="faud">9 &nbsp; RESPOND + AUDIT &nbsp;&middot;&nbsp; answer + &ldquo;why you&rsquo;re seeing this&rdquo; &nbsp;&middot;&nbsp; append-only audit log</td></tr>
+</table>
+
+<h3>A.4 The connected-knowledge idea</h3>
+<p>Beyond storing passages, the system builds a web of relationships between them &mdash; the same topic discussed in a meeting and a document becomes linked, so a question about that topic can gather every relevant piece regardless of where it lives. This is what turns a pile of files into a knowledge fabric.</p>
+
+<h3>A.5 Design principles (non-negotiable)</h3>
+<ul>
+<li><b>Permission is applied before knowledge is retrieved</b> &mdash; never retrieve everything and hide later.</li>
+<li><b>Answers are grounded in captured content only</b> &mdash; the system does not invent, and is not trained on the raw content.</li>
+<li><b>Everything is auditable</b> &mdash; every question, decision, source, and action is logged.</li>
+<li><b>Humans stay in control</b> &mdash; surfacing and any future actions pass through review and approval.</li>
+</ul>
+
+</body>
+</html>

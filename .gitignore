@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Env / secrets
+.env
+*.pem
+*.key
+
+# Data (ingested docs stay out of git - could be large/confidential)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/
+
+# OS/editor
+.DS_Store
+*.swp
+
+# Postgres local data dir if ever created here
+pgdata/
