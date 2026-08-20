@@ -104,3 +104,16 @@ system action or meaningful file/doc change, newest at the bottom.)*
   personal access token or the user running `gh auth login` themselves.
   — *Requirement: user asked whether the git repo is reachable from outside
   the VPC; answer is not yet, needs a remote configured.*
+
+- **[github remote]** User provided a GitHub fine-grained PAT and created
+  the target repository at `https://github.com/Sivaj90/knowledgeFabric`.
+  Token stored in `~/.hermes/.env` as `GITHUB_TOKEN` (secrets-only location,
+  never committed). Initial push attempts failed with 403 (token lacked
+  Contents:write); user updated the token's repository permissions on
+  github.com, then push succeeded via `git push --force-with-lease` (a
+  stray one-off API test-write commit on the empty remote was overwritten
+  by our real local history — no project content was lost, remote had
+  nothing but that test file). All 7 local commits + full file tree
+  confirmed present on GitHub via `gh api repos/.../contents/` listing.
+  `origin` remote now tracks `main`. — *Requirement: user wants the repo
+  accessible from outside this VPC.*
