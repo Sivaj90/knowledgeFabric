@@ -1,0 +1,29 @@
+# Landmark Knowledge Fabric - Slice 1 (capture pipeline) dependencies
+# Pinned to versions available/tested as of 2026-08-20.
+
+# --- Config / env ---
+python-dotenv==1.0.1
+pydantic==2.9.2
+pydantic-settings==2.5.2
+
+# --- Postgres / ORM / migrations ---
+SQLAlchemy==2.0.35
+psycopg[binary]==3.2.3
+pgvector==0.3.6
+alembic==1.13.3
+
+# --- Queue ---
+celery==5.4.0
+redis==5.1.1
+
+# --- Ingestion / chunking ---
+unstructured[docx,pptx,pdf,md]==0.15.13
+langchain==0.3.7
+langchain-text-splitters==0.3.2
+
+# --- LLM client (LiteLLM proxy speaks OpenAI-compatible API) ---
+openai==1.54.4
+
+# --- Testing ---
+pytest==8.3.3
+pytest-mock==3.14.0

@@ -72,12 +72,31 @@ real RBAC/classification, Next.js UI, observability, CI/CD.
       template connection values respectively
 
 ### Phase 1.1 — Project scaffolding
-- [ ] Python package layout (`src/kb_fabric/` or similar — TBC naming)
-- [ ] `requirements.txt` / `pyproject.toml` — LangChain, Unstructured.io,
-      psycopg (pgvector), redis-py, celery, python-dotenv, pytest
-- [ ] `.env.example` documenting required vars (DB DSN, Redis URL, LiteLLM
-      base_url + key env var name, no real secrets committed)
-- [ ] Alembic (or equivalent) migration setup for the metadata schema
+- [x] Python package layout — `src/kb_fabric/` (src-layout, installed
+      editable via `pip install -e .`)
+- [x] `requirements.txt` + `pyproject.toml` (setuptools, src-layout,
+      pytest config) — SQLAlchemy 2.0.35, psycopg3 3.2.3, pgvector 0.3.6,
+      alembic 1.13.3, celery 5.4.0, redis-py 5.1.1, unstructured 0.15.13
+      (docx/pptx/pdf/md extras), langchain 0.3.7, openai 1.54.4 (LiteLLM
+      proxy is OpenAI-compatible), pytest 8.3.3 — all installed clean,
+      `pip check` passes
+- [x] `.env.example` documenting all required vars (Postgres, Redis/Celery,
+      LiteLLM base_url+key+models, data paths) — fixed a bug found during
+      this phase: `DATABASE_URL` must use `postgresql+psycopg://` (psycopg3)
+      not bare `postgresql://` (SQLAlchemy defaults that scheme to psycopg2,
+      which isn't installed) — fixed in both `.env` and `.env.example`
+- [x] `kb_fabric.config.Settings` (pydantic-settings) — typed, centralized
+      env loading, `get_settings()` cached accessor
+- [x] Alembic migration setup — `alembic/env.py` wired to
+      `kb_fabric.config.get_settings()` (single source of truth for the DB
+      URL, not duplicated in `alembic.ini`) and `kb_fabric.models.Base`
+      metadata for autogenerate; verified live: `alembic current` connects
+      to Postgres successfully, `alembic revision --autogenerate` produces
+      a correct empty baseline (no tables yet — expected, Phase 1.2 adds
+      the schema)
+- [x] Smoke tests (`tests/test_config.py`) — settings load from `.env`,
+      live `SELECT 1` DB connectivity via SQLAlchemy engine — both pass
+      (`pytest`: 2 passed)
 
 ### Phase 1.2 — Data model
 - [ ] Postgres schema: `documents`, `chunks` tables matching HLD §7.4 chunk

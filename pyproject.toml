@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kb-fabric"
+version = "0.1.0"
+description = "Landmark Enterprise Knowledge Fabric - permission-aware RAG platform (Slice 1: capture pipeline)"
+requires-python = ">=3.11"
+readme = "AGENTS.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

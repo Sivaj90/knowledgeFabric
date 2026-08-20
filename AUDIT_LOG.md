@@ -154,3 +154,36 @@ system action or meaningful file/doc change, newest at the bottom.)*
   Confirmed Python 3.11.15 + pip 24.0 inside the venv. No packages
   installed into it yet (next: requirements.txt / pyproject.toml per
   implementation plan Phase 1.1).
+
+- **[Phase 1.1 — project scaffolding]** Created `src/kb_fabric/` package
+  (src-layout), `pyproject.toml` (setuptools + pytest config), and
+  `requirements.txt` pinning: SQLAlchemy 2.0.35, psycopg[binary] 3.2.3,
+  pgvector 0.3.6, alembic 1.13.3, celery 5.4.0, redis-py 5.1.1,
+  unstructured[docx,pptx,pdf,md] 0.15.13, langchain 0.3.7 +
+  langchain-text-splitters 0.3.2, openai 1.54.4 (LiteLLM proxy is
+  OpenAI-compatible), pydantic-settings 2.5.2, pytest 8.3.3 +
+  pytest-mock 3.14.0. Installed into project `.venv` via
+  `pip install -r requirements.txt` — clean install, `pip check` reports
+  no broken requirements. Installed project itself editable
+  (`pip install -e .`). — *Requirement: Phase 1.1 of implementation plan.*
+- **[bug found + fixed]** `.env` / `.env.example` `DATABASE_URL` used bare
+  `postgresql://` scheme; SQLAlchemy resolves that to the psycopg2 driver
+  by default, which is not installed (project uses psycopg3). Fixed both
+  files to use `postgresql+psycopg://`. Verified fix via live Postgres
+  connection through SQLAlchemy engine (`SELECT 1`) and via
+  `alembic current`. — *Requirement: Phase 1.1, caught during verification,
+  not left for later phases to discover.*
+- **[Phase 1.1 — Alembic]** Ran `alembic init alembic`; rewired
+  `alembic/env.py` to import `kb_fabric.config.get_settings()` for the DB
+  URL (single source of truth, not duplicated in `alembic.ini`) and
+  `kb_fabric.models.Base.metadata` as `target_metadata` for autogenerate.
+  Verified live against the real `kb_fabric` Postgres DB: `alembic current`
+  connects successfully; `alembic revision --autogenerate -m "baseline (no
+  tables yet)"` produces a correctly empty migration (no models defined
+  yet — expected, schema lands in Phase 1.2). — *Requirement: Phase 1.1.*
+- **[Phase 1.1 — tests]** Added `tests/test_config.py`: settings load
+  correctly from `.env`, and a live DB connectivity smoke test
+  (`SELECT 1` via the SQLAlchemy engine). `pytest`: 2 passed. — *Requirement:
+  Phase 1.1 / unit-test lifecycle step per AGENTS.md.*
+- **[gitignore]** Added `.pytest_cache/` to `.gitignore` (egg-info and
+  pycache patterns already covered generated dirs).
