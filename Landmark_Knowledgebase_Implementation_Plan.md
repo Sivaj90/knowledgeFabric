@@ -99,19 +99,43 @@ real RBAC/classification, Next.js UI, observability, CI/CD.
       (`pytest`: 2 passed)
 
 ### Phase 1.2 — Data model
-- [ ] Postgres schema: `documents`, `chunks` tables matching HLD §7.4 chunk
+- [x] Postgres schema: `documents`, `chunks` tables matching HLD §7.4 chunk
       metadata schema (chunk_id, document_id, source_system, source_uri,
       content, content_hash, embedding_id, functions[], classification_tier,
       effective_tier, owner, authors, project_ids, entities, timestamps,
-      version, superseded_by)
-- [ ] Add `is_public boolean DEFAULT false` and `chunk_acl_tokens text[]`
+      version, superseded_by) — implemented as SQLAlchemy ORM models in
+      `src/kb_fabric/models.py`, Alembic migration
+      `b8ac0ffa5f4e_documents_and_chunks_tables_hld_7_4_.py`, applied to the
+      live `kb_fabric` DB
+- [x] Added `is_public boolean DEFAULT false` and `chunk_acl_tokens text[]`
       (GIN-indexed) columns now (onyx-pattern early-binding ACL, see local
-      VPC HLD §5.1) — populate with a placeholder value for Slice 1 (e.g.
-      `is_public=false`, `chunk_acl_tokens={}`), wired for real use once
-      RBAC/classification is implemented in a later slice
-- [ ] pgvector column on chunks (or a separate vectors table — decide during
-      implementation) sized to the embedding model's dimension
-- [ ] Postgres FTS index (tsvector column + GIN index) on chunk content
+      VPC HLD §5.1) — populated as `is_public=false`/`chunk_acl_tokens={}`
+      for every chunk in Slice 1 (real values wired in a later RBAC slice;
+      verified the exact target query shape
+      `WHERE is_public OR chunk_acl_tokens && :user_tokens` works correctly
+      against seeded public/restricted/unauthorized test rows)
+- [x] pgvector column on `chunks.embedding` with an HNSW (cosine) ANN index
+      — **dimension bug found + fixed:** `landmark-text-embedding-3-large`
+      natively outputs 3072 dims, but pgvector 0.6.2 hard-caps HNSW/IVFFlat
+      indexes at 2000 dims (hit live: `InternalError: column cannot have
+      more than 2000 dimensions for hnsw index`). Resolved by requesting
+      embeddings at reduced width via OpenAI's officially-supported
+      `dimensions=1536` API parameter (Matryoshka-style truncation, not a
+      hack) — `EMBEDDING_DIM=1536` is now the single source of truth in
+      `kb_fabric/models.py`; Phase 1.4's embed step must pass
+      `dimensions=EMBEDDING_DIM` on every embeddings call
+- [x] Postgres FTS index (tsvector column + GIN index) on chunk content —
+      implemented as a Postgres **generated STORED column**
+      (`to_tsvector('english', content)`), kept in sync automatically by
+      Postgres on every insert/update, never written by the app; verified
+      with a live `plainto_tsquery` search
+- [x] Functional verification (`tests/test_schema.py`, 6 tests, all run
+      against the real `kb_fabric` Postgres DB, not mocks): insert/roundtrip,
+      dedup-gate unique constraint enforcement, cascade delete
+      (document→chunks), pgvector cosine similarity ranking correctness,
+      generated FTS column + keyword search, and the exact authz filter
+      query pattern from the local VPC HLD. `pytest`: 8 passed (2 from
+      Phase 1.1 + 6 new)
 
 ### Phase 1.3 — Ingestion connector (local folder substitute)
 - [ ] Folder-scanner connector: walks `data/raw/`, computes `content_hash`

@@ -187,3 +187,37 @@ system action or meaningful file/doc change, newest at the bottom.)*
   Phase 1.1 / unit-test lifecycle step per AGENTS.md.*
 - **[gitignore]** Added `.pytest_cache/` to `.gitignore` (egg-info and
   pycache patterns already covered generated dirs).
+
+- **[Phase 1.2 — data model]** Implemented `documents` and `chunks` tables
+  as SQLAlchemy ORM models (`src/kb_fabric/models.py`) matching production
+  HLD §7.4 chunk metadata schema exactly, plus the early-binding ACL columns
+  (`is_public`, `chunk_acl_tokens`, GIN-indexed) called for in the local VPC
+  HLD §5.1. Generated + applied Alembic migration
+  `b8ac0ffa5f4e_documents_and_chunks_tables_hld_7_4_.py` against the live
+  `kb_fabric` DB. — *Requirement: Phase 1.2 of implementation plan.*
+- **[bug found + fixed]** pgvector 0.6.2 hard-caps HNSW/IVFFlat ANN indexes
+  at 2000 dimensions; `landmark-text-embedding-3-large` natively outputs
+  3072-dim vectors — hit live as `InternalError: column cannot have more
+  than 2000 dimensions for hnsw index` when applying the migration. Fixed
+  by switching to OpenAI's `dimensions=1536` API parameter (a supported,
+  documented truncation feature of that embedding model, not a hack) —
+  `EMBEDDING_DIM=1536` centralized in `kb_fabric/models.py` as the single
+  source of truth; flagged for Phase 1.4 (embed step) to pass
+  `dimensions=EMBEDDING_DIM` on every embeddings call. — *Requirement:
+  Phase 1.2, caught during verification.*
+- **[Phase 1.2 — FTS]** Implemented `chunks.content_tsv` as a Postgres
+  generated STORED column (`to_tsvector('english', content)`) rather than a
+  plain column the app must remember to populate — always in sync with
+  `content` automatically. GIN index added. Verified with a live
+  `plainto_tsquery` search. — *Requirement: Phase 1.2.*
+- **[Phase 1.2 — tests]** Added `tests/test_schema.py`: 6 functional tests
+  against the real `kb_fabric` Postgres DB (not mocks) — insert/roundtrip,
+  unique-constraint dedup-gate enforcement, cascade delete, pgvector cosine
+  similarity ranking correctness, generated-column FTS search, and the
+  exact authz filter query pattern
+  (`WHERE is_public OR chunk_acl_tokens && :user_tokens`) from the local VPC
+  HLD, seeded with public/restricted/unauthorized rows to prove the filter
+  is correct. `pytest`: 8 passed total (2 existing + 6 new). Confirmed no
+  test data leaked into the DB (all tests roll back; `SELECT count(*)` on
+  both tables returns 0 post-run). — *Requirement: Phase 1.2 / unit-test
+  lifecycle step per AGENTS.md.*
