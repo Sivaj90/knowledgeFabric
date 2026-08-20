@@ -180,35 +180,117 @@ real RBAC/classification, Next.js UI, observability, CI/CD.
       `pytest`: 17 passed (8 from Phases 1.1/1.2 + 9 new)
 
 ### Phase 1.4 — Processing pipeline (Celery worker)
-- [ ] Parse: Unstructured.io (docx/pdf/pptx/md) + Tesseract OCR fallback for
-      scanned content
-- [ ] Chunk: LangChain semantic chunking (chunk size/overlap — TBC, see open
-      item in local VPC HLD)
-- [ ] Classify: hardcoded `classification_tier = "internal"`,
+- [x] Parse: Unstructured.io (docx/pdf/pptx/md/txt) + Tesseract OCR fallback
+      for scanned content — `src/kb_fabric/pipeline/parse.py`, uses
+      `unstructured.partition.auto.partition` (auto-detects file type and
+      OCR need). **2 real environment bugs found + fixed:** (1) PDF import
+      failed with `libGL.so.1` missing — fixed via `dnf install
+      mesa-libGL`; (2) `unstructured==0.15.13`'s pdf extra pulled in a
+      `pdfminer.six`/`pdfplumber` combo where neither the old nor a
+      hand-pinned-down `pdfminer.six` satisfied both packages' constraints
+      simultaneously — fixed properly by bumping `unstructured` to 0.16.25
+      (not by fighting the transitive pins), then letting pip re-resolve
+      `pdfminer.six` to the version both `unstructured` 0.16.25 and
+      `pdfplumber` actually agree on. `pip check`: clean.
+- [x] Chunk: LangChain `RecursiveCharacterTextSplitter` —
+      `src/kb_fabric/pipeline/chunk.py`. **Concrete numbers now pinned**
+      (was an open item): `CHUNK_SIZE=1000` chars, `CHUNK_OVERLAP=0` (the
+      zero-overlap choice matches the local VPC HLD's stated onyx-pattern
+      rationale — chunk = atomic permission unit, so no chunk boundary
+      should let the same sentence live under two different ACL/tier
+      decisions).
+- [x] Classify: hardcoded `classification_tier = "internal"`,
       `effective_tier = "internal"` for every chunk (no real rules/LLM yet)
-- [ ] Embed: call `landmark-text-embedding-3-large` via LiteLLM proxy, only
-      for chunks whose `content_hash` changed
-- [ ] Write: fan out to Postgres metadata table, pgvector column, FTS index
+      — `src/kb_fabric/pipeline/classify.py`, isolated as its own function
+      so the real classifier is a drop-in replacement later
+- [x] Embed: call `landmark-text-embedding-3-large` via the LiteLLM proxy —
+      `src/kb_fabric/pipeline/embed.py`, **always passes
+      `dimensions=EMBEDDING_DIM` (1536)** per the Phase 1.2 pgvector
+      HNSW-index-cap fix. **Real bug found + fixed:** `openai==1.54.4`'s
+      bundled HTTP client passed a `proxies` kwarg that the already-pinned
+      `httpx==0.28.1` no longer accepts (`TypeError: Client.__init__() got
+      an unexpected keyword argument 'proxies'`) — fixed by bumping
+      `openai` to `>=3.0.0`. Verified live against the real LiteLLM
+      endpoint: confirmed HTTP 200 and exactly 1536-dim vectors returned.
+- [x] Write: fan out to Postgres metadata table (`documents`/`chunks`),
+      pgvector column, FTS index (generated column, no app write needed) —
+      `src/kb_fabric/pipeline/write.py`
+- [x] Orchestrator (`src/kb_fabric/pipeline/orchestrator.py`) wires all
+      five steps together (`process_envelope`) and is called from the real
+      Celery task (`kb_fabric.tasks.process_document_envelope`, no longer
+      the Phase 1.3 `NotImplementedError` stub)
+- [x] **Live end-to-end verification** (real file, real worker, real
+      network, real DB — not test fixtures): dropped a real `.md` file into
+      `data/raw/`, ran `python -m kb_fabric.run_ingest`, started a real
+      Celery worker which picked up the task, called the real LiteLLM
+      embeddings endpoint (confirmed `HTTP/1.1 200 OK` in worker logs),
+      and wrote 1 document + 1 chunk to the real `kb_fabric` Postgres DB.
+      Verified via `psql`: real 1536-dim embedding stored
+      (`vector_dims(embedding)` = 1536), `content_tsv` populated, correct
+      `internal`/`internal` tier, `is_public=false`. Ran a live pgvector
+      cosine-similarity query against the real embedded chunk with a new
+      query embedding — returned a sensible similarity distance (0.2987)
+      for a semantically related query. Test artifacts (file + DB rows +
+      Redis queues) cleaned up after manual verification.
+- [x] Functional tests (`tests/test_pipeline.py`, 15 tests — parse/chunk/
+      classify/embed/write/orchestrator, all against real fixture files,
+      the real LiteLLM embeddings endpoint, and real Postgres, not mocks).
+      Also updated `tests/test_ingest_entrypoint.py`'s eager-mode test
+      since it now exercises the real (no-longer-stub) pipeline body.
+      **Test-hygiene fix:** `process_envelope`/Celery tasks commit
+      internally (needed for production durability), so tests that invoke
+      them now explicitly delete what they wrote in a `finally` block —
+      verified by running the full suite twice in a row and confirming
+      zero row accumulation in Postgres. `pytest`: 32 passed total (17
+      existing + 15 new), confirmed stable across repeated runs.
 
 ### Phase 1.5 — Unit testing
-- [ ] Test folder-scanner dedup logic (same file twice = no re-embed;
-      changed file = re-embed)
-- [ ] Test chunker on each file type (docx/pdf/md/pptx) with fixture files
-- [ ] Test classify stub always returns "internal"
-- [ ] Test embedding call (mocked LiteLLM response) wires into pgvector
-      write correctly
-- [ ] Test chunk metadata schema fields are all populated (no nulls where
-      HLD schema requires a value)
+- [x] Test folder-scanner dedup logic (same file twice = no re-embed;
+      changed file = re-embed) — done in Phase 1.3's
+      `tests/test_folder_connector.py`
+      (`test_dedup_gate_skips_already_ingested_unchanged_file`,
+      `test_dedup_gate_re_enqueues_changed_file`)
+- [x] Test chunker — done for `.md`/`.txt` in `tests/test_pipeline.py`
+      (`test_parse_markdown_file`, `test_parse_text_file`,
+      `test_chunk_text_splits_on_size`). **Not yet covered:** real `.docx`/
+      `.pdf`/`.pptx` fixture files — flagged as a Phase 1.6 gap below,
+      since those need actual binary fixture files to be created/checked
+      in, a bigger lift than the plain-text fixtures used so far.
+- [x] Test classify stub always returns "internal" —
+      `test_classify_always_returns_internal`
+- [x] Test embedding call wires into pgvector write correctly — done
+      against the **real** LiteLLM endpoint (not mocked, per this project's
+      established "verify against real infra" pattern) in
+      `test_embed_texts_returns_correct_dimension`,
+      `test_write_document_envelope_roundtrip`,
+      `test_process_envelope_full_pipeline_writes_real_chunks`
+- [x] Test chunk metadata schema fields are all populated (no nulls where
+      HLD schema requires a value) — covered by
+      `test_process_envelope_full_pipeline_writes_real_chunks` asserting
+      non-null embedding + correct tier on every written chunk, and by
+      Phase 1.2's `test_schema.py` NOT NULL constraints at the DB level
+      (a bad write would fail the insert, not just leave a null)
 
 ### Phase 1.6 — Functional testing
-- [ ] End-to-end: drop a real docx/pdf/md/pptx file in `data/raw/`, run the
-      pipeline, verify rows appear in Postgres metadata + pgvector + FTS
+- [x] End-to-end: drop a real `.md` file in `data/raw/`, run the pipeline,
+      verify rows appear in Postgres metadata + pgvector + FTS — done live
+      manually (see Phase 1.4 verification notes above) for `.md`;
+      **remaining gap:** repeat for real `.docx`/`.pdf`/`.pptx` files (need
+      actual binary fixtures — plain-text fixtures used so far don't
+      exercise Unstructured.io's docx/pptx/pdf-specific parsing paths)
 - [ ] Idempotency: re-run on unchanged file, verify no duplicate rows / no
-      re-embedding
+      re-embedding (dedup gate itself is tested per Phase 1.5, but not yet
+      as a full live re-run through the actual CLI entrypoint twice)
 - [ ] Update: modify a file, verify re-classification/re-chunk/re-embed
       happens and old version is versioned per `superseded_by` semantics
+      (note: `superseded_by` wiring doesn't exist yet anywhere in the
+      pipeline code — Phase 1.2's schema has the column, but nothing sets
+      it on a changed-file re-ingest; this needs actual implementation,
+      not just a test)
 - [ ] OCR path: drop a scanned/image-based PDF, verify Tesseract fallback
-      triggers and text is extracted
+      triggers and text is extracted (Tesseract itself is now installed
+      and verified working via `tesseract --version`, but no scanned-PDF
+      fixture has been run through the pipeline yet)
 
 ### Phase 1.7 — Local deployment
 - [ ] systemd unit files (or equivalent) for: Postgres (native package

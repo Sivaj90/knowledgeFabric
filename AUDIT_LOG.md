@@ -299,3 +299,56 @@ system action or meaningful file/doc change, newest at the bottom.)*
   resuming Phase 1.4 implementation. Requirement: user request to keep
   the scoring mechanism and configurable loop cap, then proceed to Phase
   1.4.
+
+- **[Phase 1.4 complete]** Implemented the full parse->chunk->classify->
+  embed->write pipeline (src/kb_fabric/pipeline/: parse.py, chunk.py,
+  classify.py, embed.py, write.py, orchestrator.py), replacing the Phase
+  1.3 NotImplementedError stub in the Celery task. Concrete decisions
+  pinned: CHUNK_SIZE=1000/CHUNK_OVERLAP=0 (onyx-pattern rationale from
+  local VPC HLD), hardcoded internal/internal classification tier per
+  Slice 1 scope, embed always passes dimensions=1536 per the Phase 1.2
+  pgvector index-cap fix. Requirement: Phase 1.4 of implementation plan.
+- **[bugs found + fixed, Phase 1.4]** (1) PDF parsing failed with missing
+  libGL.so.1 -- fixed via dnf install mesa-libGL. (2) unstructured==0.15.13
+  pdf extra had an unresolvable pdfminer.six/pdfplumber version conflict
+  (ImportError: cannot import name PSSyntaxError) -- fixed properly by
+  bumping unstructured to 0.16.25 rather than hand-pinning pdfminer down
+  (which just traded one conflict for another with pdfplumber's own pin).
+  (3) openai==1.54.4's bundled HTTP client passed a proxies kwarg that
+  httpx==0.28.1 no longer accepts -- fixed by bumping openai to >=3.0.0.
+  All three confirmed fixed via live imports/API calls, not just pip
+  installing and assuming; pip check clean after each fix.
+- **[Phase 1.4 live verification]** Dropped a real .md file into
+  data/raw/, ran the real CLI entrypoint, started a real Celery worker
+  which called the real LiteLLM embeddings endpoint (confirmed HTTP 200 in
+  worker logs) and wrote 1 document + 1 chunk to the real kb_fabric
+  Postgres DB -- verified via psql: 1536-dim embedding actually stored,
+  FTS generated column populated, correct tier/is_public values. Ran a
+  live pgvector cosine-similarity query against the real embedded chunk --
+  returned a sensible distance for a related query. Cleaned up test
+  artifacts (file, DB rows, Redis queues) after manual verification.
+- **[Phase 1.4 tests + test-hygiene fix]** Added tests/test_pipeline.py
+  (15 tests, real fixture files + real LiteLLM network calls + real
+  Postgres, not mocks). Discovered and fixed a test-hygiene bug: since the
+  pipeline now does real work (was a stub before), tests invoking
+  process_envelope/the real Celery task commit real rows internally
+  (needed for production durability) -- rollback-based cleanup doesn't
+  undo an already-committed transaction. Fixed both
+  tests/test_pipeline.py and tests/test_ingest_entrypoint.py to explicitly
+  delete what they wrote in a finally block; verified by running the full
+  suite twice in a row and confirming zero row accumulation in Postgres
+  both times. pytest: 32 passed total (17 existing + 15 new), stable
+  across repeated runs. Requirement: Phase 1.4 unit-test lifecycle step
+  per AGENTS.md.
+- **[Phase 1.5/1.6 plan reconciliation]** Marked several Phase 1.5 (unit
+  testing) items complete that were actually already satisfied by Phase
+  1.3's and 1.4's test suites (dedup logic, classify stub, embedding
+  wiring, schema field population) -- these were written organically
+  during 1.3/1.4 rather than as a separate later pass, so the plan is
+  updated to reflect reality rather than leave them looking unstarted.
+  Flagged genuine remaining gaps for Phase 1.6: real .docx/.pdf/.pptx
+  fixture files (only .md/.txt tested so far), OCR path with an actual
+  scanned-PDF fixture, idempotent re-run via the live CLI (dedup logic
+  itself is unit-tested but not exercised end-to-end twice), and
+  superseded_by versioning on file update -- which does not exist in the
+  pipeline code yet at all, not just untested.

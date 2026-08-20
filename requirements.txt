@@ -17,12 +17,24 @@ celery==5.4.0
 redis==5.1.1
 
 # --- Ingestion / chunking ---
-unstructured[docx,pptx,pdf,md]==0.15.13
+# unstructured pinned to 0.16.25 (bumped from 0.15.13 during Phase 1.4 -- the
+# older version's pdf extra pulled in a pdfminer.six/pdfplumber combo that
+# both failed to import (`libGL.so.1` missing -- fixed via `dnf install
+# mesa-libGL`; then `cannot import name 'PSSyntaxError'` -- fixed by
+# upgrading unstructured itself rather than hand-pinning pdfminer down,
+# which just traded one conflict for another with pdfplumber's own pin).
+unstructured[docx,pptx,pdf,md]==0.16.25
 langchain==0.3.7
 langchain-text-splitters==0.3.2
 
 # --- LLM client (LiteLLM proxy speaks OpenAI-compatible API) ---
-openai==1.54.4
+# openai bumped from 1.54.4 during Phase 1.4 -- that version's bundled
+# httpx client usage passed a `proxies` kwarg that newer httpx (0.28.1,
+# pulled in transitively) no longer accepts, breaking every API call with
+# `TypeError: Client.__init__() got an unexpected keyword argument
+# 'proxies'`. Confirmed live: 1.54.4 broken, current (3.3.1 at time of
+# fix) works against the same httpx version.
+openai>=3.0.0
 
 # --- Testing ---
 pytest==8.3.3
