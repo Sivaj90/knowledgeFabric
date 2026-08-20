@@ -1,0 +1,1 @@
+Plain text ingestion fixture, unrelated content for connector testing.

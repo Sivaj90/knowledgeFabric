@@ -221,3 +221,35 @@ system action or meaningful file/doc change, newest at the bottom.)*
   test data leaked into the DB (all tests roll back; `SELECT count(*)` on
   both tables returns 0 post-run). — *Requirement: Phase 1.2 / unit-test
   lifecycle step per AGENTS.md.*
+
+- **[Phase 1.3 — ingestion connector]** Implemented the connector interface
+  (`src/kb_fabric/connectors/base.py`: `Section`, `DocumentEnvelope`,
+  `LoadConnector` ABC) shaped after onyx's `BaseConnector`/`LoadConnector`
+  per the local VPC HLD's explicit rationale, and the concrete
+  `FolderConnector` (`src/kb_fabric/connectors/folder.py`) walking
+  `data/raw/` with sha256 content-hash dedup against the live `documents`
+  table. Wired Celery (`celery_app.py`, `tasks.py`, Redis-backed) with a
+  `process_document_envelope` stub task (raises `NotImplementedError` —
+  Phase 1.4 scope — rather than silently no-op'ing) and a runnable
+  `python -m kb_fabric.run_ingest [--dry-run]` entrypoint. — *Requirement:
+  Phase 1.3 of implementation plan.*
+- **[Phase 1.3 — live verification]** Ran the real entrypoint against the
+  actual `data/raw/` directory (not just test fixtures): dry-run correctly
+  reported 0 docs when empty, 1 after adding a real file; real enqueue
+  landed an actual Celery task on the live Redis broker (confirmed via
+  `redis-cli llen celery` = 1); started a real Celery worker process which
+  picked up the task and failed with the expected `NotImplementedError`,
+  proving the full connector -> Celery -> worker path works end-to-end.
+  Cleaned up Redis queues (`flushdb` on db 0 and 1) and the test file from
+  `data/raw/` afterward — Phase 1.3 leaves no artifacts behind for Phase
+  1.4 to trip over. — *Requirement: Phase 1.3, live/manual verification
+  ahead of unit tests.*
+- **[Phase 1.3 — tests]** Added `tests/test_folder_connector.py` (7 tests)
+  and `tests/test_ingest_entrypoint.py` (2 tests) — all against real
+  Postgres, real fixture files (`tests/fixtures/`), and real Celery
+  eager-mode task execution (not mocks). Covers: deterministic hashing,
+  extension filtering, stub-ACL envelope shape, dedup gate for
+  unchanged/changed files, empty/missing directory handling, dry-run
+  counting, and real task dispatch. `pytest`: 17 passed total (8 existing +
+  9 new). — *Requirement: Phase 1.3 / unit-test lifecycle step per
+  AGENTS.md.*

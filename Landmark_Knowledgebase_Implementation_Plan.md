@@ -138,13 +138,46 @@ real RBAC/classification, Next.js UI, observability, CI/CD.
       Phase 1.1 + 6 new)
 
 ### Phase 1.3 — Ingestion connector (local folder substitute)
-- [ ] Folder-scanner connector: walks `data/raw/`, computes `content_hash`
-      per file, detects new/changed files (dedup gate, matches HLD idempotency
-      requirement)
-- [ ] Normalizes each file into the same "Document envelope" shape the real
-      SharePoint connector would produce (content + stub ACL + metadata),
-      so swapping in a real connector later doesn't change downstream code
-- [ ] Enqueues envelope onto Celery (Redis-backed)
+- [x] Connector interface (`src/kb_fabric/connectors/base.py`) — `Section`,
+      `DocumentEnvelope`, `LoadConnector` ABC shaped after onyx's
+      `BaseConnector`/`LoadConnector` (`load_credentials()`,
+      `load_from_state()` checkpointed poll yielding `DocumentEnvelope`
+      batches) per local VPC HLD's stated rationale, so a real SharePoint
+      connector can implement the same interface later without touching
+      downstream code
+- [x] Folder-scanner connector (`src/kb_fabric/connectors/folder.py`) —
+      walks `data/raw/` (extension-filtered: docx/pdf/pptx/md/txt),
+      computes `sha256:<hex>` `content_hash` per file, detects new/changed
+      files via a dedup gate against the live `documents` table
+      `(source_system, source_uri, content_hash)` unique constraint — no
+      separate cursor file needed since Postgres is already the state store
+- [x] Normalizes each file into `DocumentEnvelope` (content + stub ACL +
+      metadata) — `is_public=False`/`acl_tokens=[]` hardcoded for Slice 1,
+      same envelope shape a real connector will produce later
+- [x] Celery wiring (`src/kb_fabric/celery_app.py`, `src/kb_fabric/tasks.py`)
+      — Redis-backed broker/result-backend from settings;
+      `process_document_envelope` task registered as the enqueue target
+      (Phase 1.4 fills in the actual parse/chunk/classify/embed/write body
+      — intentionally raises `NotImplementedError` for now, not a silent
+      no-op)
+- [x] Runnable entrypoint `python -m kb_fabric.run_ingest [--dry-run]` —
+      verified live end-to-end against the real filesystem, real Postgres
+      dedup gate, and real Redis broker: dry-run correctly reported 0 docs
+      against the actual empty `data/raw/`, then 1 after adding a real test
+      file; real (non-dry-run) enqueue landed an actual task on the Redis
+      `celery` queue (`redis-cli llen celery` confirmed 1); started a real
+      Celery worker which picked up the task and failed with the expected
+      `NotImplementedError` (proves the full connector→Celery→worker path
+      is wired, and cleanly hands off to Phase 1.4). Redis and `data/raw/`
+      cleaned up after the manual verification run.
+- [x] Functional tests (`tests/test_folder_connector.py`,
+      `tests/test_ingest_entrypoint.py`, 9 tests total, against real
+      Postgres + real fixture files + real Celery eager-mode execution):
+      deterministic hashing, unsupported-extension filtering, new-file
+      enqueue with correct stub ACL, dedup gate skips unchanged files,
+      dedup gate re-enqueues changed files (different hash), empty/missing
+      root dir handling, dry-run count, and real Celery task dispatch.
+      `pytest`: 17 passed (8 from Phases 1.1/1.2 + 9 new)
 
 ### Phase 1.4 — Processing pipeline (Celery worker)
 - [ ] Parse: Unstructured.io (docx/pdf/pptx/md) + Tesseract OCR fallback for
