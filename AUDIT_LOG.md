@@ -438,3 +438,28 @@ system action or meaningful file/doc change, newest at the bottom.)*
   commands) -- flagging this explicitly so it isn't mistaken for
   forgotten; the user can approve/apply that edit directly whenever
   convenient.
+
+- **[Slice 2 scoping]** Per user request, started scoping Slice 2
+  (retrieval) now that Slice 1 (capture, Phases 1.0-1.7) is complete. Wrote
+  a dedicated tech design doc,
+  Landmark_Knowledgebase_Slice2_Retrieval_Design.md, following the same
+  analyze -> design -> plan lifecycle as Slice 1 -- explicitly design/plan
+  only, no implementation started. Covers: what's in/out of scope (graph
+  expansion and real RBAC deferred, per user's phased approach), the authz
+  mechanism decision needed before implementation (stub token vs. skipping
+  authz -- recommended stub token, flagged for user confirmation not
+  decided unilaterally), source-authority-weight stubbing for RRF, a
+  10-phase breakdown (2.0-2.10) mirroring Slice 1's phase structure, and
+  the query-planning/sufficiency-loop design (already agreed in the HLD a
+  prior session, referenced not duplicated). Consolidated the
+  duplicate/growing "Next slice" section in the implementation plan into a
+  short pointer to the new dedicated doc, since it had accumulated the
+  full HLD §8.1/§8.3a design inline and was becoming redundant with the
+  HLD itself. Requirement: user request to scope Slice 2.
+- **[user preference noted]** User asked that, wherever reasonably
+  feasible, individual LLM calls in designs/implementations be kept
+  single-purpose and lean (not combined into one large multi-task prompt),
+  to avoid inflating input tokens -- saved to user memory. Reflected in
+  the Slice 2 design doc: query planner, answer generation, and
+  sufficiency check are specified as three separate, focused LLM calls
+  rather than one combined call.

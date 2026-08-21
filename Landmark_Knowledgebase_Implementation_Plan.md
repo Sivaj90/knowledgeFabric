@@ -429,104 +429,18 @@ directory (`readlink -f .venv/bin/python3.11` to find the real path).
 - [ ] Retain `data/processed/` intermediate artifacts or treat as ephemeral?
 - [ ] Concrete chunk size/overlap default (HLD doesn't pin numbers)
 
-## Next slice (not started, for context only)
+## Next slice — scoping started 2026-08-20
 
-Once Slice 1 (capture) is proven: Slice 2 = retrieval (hybrid BM25+vector,
-RRF fusion, FastAPI `/query` endpoint, grounded answer via GPT-5.5 mini) —
-matches HLD §8. Apache AGE graph store and real classification/RBAC to be
-scheduled as their own slices after that, per user's phased approach.
+Slice 1 (capture) is complete (Phases 1.0–1.7). Slice 2 = retrieval, per
+HLD §8. **Full tech design now lives in its own document:**
+`Landmark_Knowledgebase_Slice2_Retrieval_Design.md` — scope, phased
+breakdown (2.0–2.10), the authz-stub and source-authority-weight open
+decisions to confirm before implementation starts, and the query-planning
++ sufficiency-loop design (which was worked out in
+`Landmark_Enterprise_Knowledge_Fabric_HLD_Updated.md` §8.1 step 0 / §8.3a
+in an earlier session and is referenced, not duplicated, from the Slice 2
+design doc).
 
-**Slice 2 scope update (added 2026-08-20, per user request) — keep AI in
-the retrieval loop itself, not just as the final answer-generation step.**
-Two agentic additions to design and build alongside baseline retrieval, now
-also documented in `Landmark_Enterprise_Knowledge_Fabric_HLD_Updated.md`
-§8.1 step 0 and §8.3a:
-
-- **Pre-retrieval query planning (HLD §8.1 step 0).** Before candidate
-  generation runs, an LLM call decides (a) which engine(s) to invoke —
-  vector-only, keyword-only, hybrid (default), or vector+graph for
-  multi-hop questions — and (b) whether the query needs reframing
-  (expansion, pronoun/context resolution, decomposition into sub-queries).
-  Both the routing decision and any reframed query are logged and surfaced
-  in the "why you're seeing this" transparency block.
-- **Post-answer sufficiency check with a scored, configurable retry loop
-  (HLD §8.3a — mechanism now resolved, not just flagged).** After the
-  answer-gen LLM produces a draft, a structured LLM call scores it on two
-  dimensions — `coverage_score` (did retrieval get enough) and
-  `groundedness_score` (is the answer actually supported by cited chunks)
-  — each 0.0-1.0, returned as JSON, not free-form judgment. If either score
-  falls below its configured threshold (POC defaults: coverage 0.7,
-  groundedness 0.8), the loop re-enters retrieval with a suggested refined
-  query, up to a **configurable `max_retrieval_loops`** (POC default: 1
-  extra pass; per-function overridable at end-state, same governance
-  pattern as arbitration rules — a knowledge owner sets it, every change
-  audited). If the cap is hit without reaching threshold, the
-  **best-scoring pass so far** is returned with an explicit "could not
-  fully verify" caveat — never silently returned as if fully verified,
-  never looped indefinitely. Both scores are **persisted to Audit for every
-  query**, which is also the resolution to the previously-flagged "no
-  per-response quality score exists" gap — this score uses the same metric
-  vocabulary as RAGAS (`coverage_score` ≈ RAGAS `context_precision`/
-  `context_recall`, `groundedness_score` ≈ RAGAS `faithfulness`), so the
-  cheap synchronous runtime score and the heavier periodic RAGAS/Azure AI
-  Evaluation batch layer are complementary, not two competing choices.
-
-**Configuration surface (new, POC defaults — lives alongside arbitration
-rules / `project_grants` / action-approval thresholds as one per-function
-config surface, not a separate system):**
-
-| Setting | POC default | Purpose |
-|---|---|---|
-| `coverage_threshold` | 0.7 | Below this → trigger retry |
-| `groundedness_threshold` | 0.8 | Below this → trigger retry (weighted higher: ungrounded is worse than incomplete) |
-| `max_retrieval_loops` | 1 | Hard cap on extra retrieval passes; 0 disables the loop (today's single-pass behavior) |
-| `sufficiency_model` | same as answer-gen model | May switch to a cheaper/faster model at end-state, see challenge #1 below |
-
-**Challenges / risks flagged now, before Slice 2 design starts in earnest:**
-1. **Latency stacking.** Query planning adds one LLM round-trip *before*
-   retrieval; the sufficiency check adds another *after* generation, and
-   each triggered retry adds a full extra retrieval+generation cycle. Three
-   to four sequential LLM calls per query (planner → answer-gen →
-   sufficiency → possible retry generation) is a real latency budget
-   problem against the "sub-second retrieval" non-functional target
-   (HLD §16) — that target was written for the hybrid search step alone,
-   not a multi-call agentic loop wrapped around it. Needs an explicit
-   updated latency target for the full agentic path before this is built,
-   or a fast/cheap model choice for the planner + sufficiency steps
-   specifically (separate from the answer-gen model).
-2. **Cost stacking.** Same shape as #1 but for spend — every query
-   potentially becomes 2-4 LLM calls instead of 1. Needs a per-query cost
-   budget decided alongside the latency target (ties into HLD §17 "cost
-   per query" POC evaluation criterion, and §18 evaluation criterion 7).
-3. **Quality score now defined, calibration still TBD.** The sufficiency
-   check (coverage/groundedness, 0.0-1.0, see above) **is** the per-response
-   quality score — the earlier-flagged "no scoring mechanism exists" gap is
-   resolved in the HLD. What remains open: the POC thresholds (0.7/0.8) are
-   reasoned starting points, not measured against real usage yet, and will
-   need per-function tuning once Slice 2 has real query traffic to look at.
-4. **Reframing breaks naive caching.** If/when a query-result cache is
-   added (HLD §16 lists Redis caching as a latency lever), a reframed query
-   string no longer matches a cache keyed on the raw user query. Cache key
-   strategy needs to account for this (e.g. key on reframed query, or
-   cache at the chunk-candidate level rather than final-answer level).
-5. **Explainability surface area.** The existing "why you're seeing this"
-   transparency block (HLD §8.1 step 4, §8.4) now needs to communicate
-   three additional things without becoming noise: what engine(s) were
-   chosen and why, whether/how the query was reframed, and whether a retry
-   pass happened and why. Needs a concrete UI/API contract for this, not
-   just "log it" — logging alone (Audit, Layer 5) satisfies the audit
-   requirement but not the user-facing transparency requirement, which are
-   two different consumers of the same event.
-6. **Sufficiency-check false positives/negatives are themselves a new
-   failure mode.** A sufficiency check that's too lenient defeats its own
-   purpose (never triggers a retry, same as not having it); one that's too
-   strict burns the latency/cost budget in #1/#2 on every query. The
-   0.7/0.8 POC defaults need validating against real usage once Slice 2 is
-   live — this is exactly what the periodic RAGAS/Azure AI Evaluation batch
-   layer (HLD §15) is for: auditing whether the cheap synchronous score is
-   itself well-calibrated.
-
-No implementation started on any of this yet — Slice 1 (capture) continues
-as originally planned; this is design-ahead documentation only, per user
-request to capture it now before Phase 1.4 implementation resumes.
+No implementation started yet — Phase 2.0 (confirming the open decisions
+in the Slice 2 design doc) comes first.
 
