@@ -1,0 +1,47 @@
+[Unit]
+Description=Landmark Knowledge Fabric - Query API (Slice 2 retrieval)
+Documentation=file:///var/lib/aiprojects/knowledgebase/Landmark_Knowledgebase_Slice2_Retrieval_Design.md
+After=network.target postgresql.service redis.service kb-fabric-celery-worker.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=opc
+Group=opc
+WorkingDirectory=/var/lib/aiprojects/knowledgebase
+
+# EnvironmentFile loads .env directly -- same file kb_fabric.config reads
+# via python-dotenv, so there is exactly one place connection/config
+# values live, not two copies that can drift.
+EnvironmentFile=/var/lib/aiprojects/knowledgebase/.env
+
+# Bound to 127.0.0.1 only, not 0.0.0.0 -- deliberate, matches the Phase 2.0
+# authz-not-enforced decision (see Landmark_Knowledgebase_Slice2_Retrieval_Design.md
+# section 2): this endpoint must not be reachable off-box while authz is
+# unenforced. Do not change to 0.0.0.0 without first closing that gap.
+ExecStart=/var/lib/aiprojects/knowledgebase/.venv/bin/uvicorn kb_fabric.retrieval.api:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --log-level info
+
+KillSignal=SIGTERM
+TimeoutStopSec=10
+
+Restart=on-failure
+RestartSec=5
+
+# Hardening (safe defaults for a native, non-containerized service).
+# NOTE: the project venv (.venv) uses `uv`-managed Python installed under
+# ~/.local/share/uv/ -- a symlink target outside WorkingDirectory -- so
+# ProtectHome must allow read access there (read-only, not "true"/full
+# hide) or the interpreter can't be exec'd at all. Both the venv's bin/
+# and the underlying uv Python's bin/ were SELinux-relabeled to bin_t
+# during Phase 1.7 (see implementation plan's Phase 1.7 notes) -- this
+# unit relies on that same relabeling, already done, not a new step.
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/var/lib/aiprojects/knowledgebase
+
+[Install]
+WantedBy=multi-user.target

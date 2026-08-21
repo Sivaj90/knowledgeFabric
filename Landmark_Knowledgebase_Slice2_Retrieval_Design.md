@@ -233,17 +233,37 @@ mid-implementation.
 
 | Phase | Deliverable |
 |---|---|
-| 2.0 | Confirm remaining open decisions (top-N candidates per engine, context budget size/token limit, RRF `k` constant) with user before building — the authz (§2) and authority-weight (§4) decisions are already confirmed (2026-08-20) |
-| 2.1 | Query-side vector search (embed query, pgvector similarity query) + unit tests against real DB |
-| 2.2 | Query-side keyword search (FTS query) + RRF fusion query builder shaped with the `authz_filter=None` hook from §2 (not enforced, but structured so it activates later without a rewrite) + unit tests |
-| 2.3 | RRF fusion + arbitration (most-recent-wins-in-tier) + unit tests |
-| 2.4 | Context assembly (budget truncation) + answer generation (grounded, cited) with the typed `AnswerGenInput` contract from §6.1 + unit tests |
-| 2.5 | Query planner (engine routing + reframe) as a separate LLM call with typed `QueryPlannerInput`/output, wired in front of 2.1-2.2 |
-| 2.6 | Sufficiency check (scored, bounded retry loop) as a separate LLM call with typed `SufficiencyCheckInput`/output, wired after 2.4, including the retry-context passthrough from §6.1 |
-| 2.7 | FastAPI `/query` endpoint wrapping the above, with the transparency block (incl. `authorization: not_enforced_slice2` field) and the startup-time authz warning log |
-| 2.8 | Unit testing pass (per-component, real DB/LLM calls per this project's established pattern — including constructing each LLM call's typed input directly per the §6.1 testability note) |
-| 2.9 | Functional testing pass (end-to-end real queries against real ingested Slice 1 data) |
-| 2.10 | Local deployment (systemd unit for the FastAPI service, alongside the existing Celery worker) |
+| 2.0 | **Config defaults confirmed 2026-08-20 (proposed by Hermes, see table below)** — top-N per engine, context budget, RRF `k`. Authz (§2) and authority-weight (§4) decisions already confirmed same day. |
+| 2.1 | [x] Query-side vector search (embed query, pgvector similarity query) + unit tests against real DB — 4/4 tests passing |
+| 2.2 | [x] Query-side keyword search (FTS query) + RRF fusion query builder shaped with the `authz_filter=None` hook from §2 + unit tests — 5/5 tests passing |
+| 2.3 | [x] RRF fusion + arbitration (most-recent-wins-in-tier) + unit tests — 7/7 tests passing |
+| 2.4 | [x] Context assembly (budget truncation) + answer generation (grounded, cited, real LiteLLM chat calls) with the typed `AnswerGenInput` contract from §6.1 + unit tests — 7/7 tests passing |
+| 2.5 | [x] Query planner (engine routing + reframe) as a separate LLM call with typed `QueryPlannerInput`/output — 4/4 tests passing, live-verified reframing using conversation history |
+| 2.6 | [x] Sufficiency check (scored, bounded retry loop) as a separate LLM call with typed `SufficiencyCheckInput`/output, retry-context passthrough — 6/6 tests passing, live-verified good-answer/bad-answer score discrimination |
+| 2.7 | [x] FastAPI `/query` endpoint (`src/kb_fabric/retrieval/api.py`) wrapping the above, with the transparency block (`authorization: not_enforced_slice2`) and the startup-time authz warning log — 5/5 tests passing, live-verified via real HTTP requests |
+| 2.8 | [x] Unit testing — 42 new Slice 2 unit tests written alongside each phase (2.1-2.7), all real DB/LLM calls per this project's established pattern, typed inputs constructed directly per §6.1 |
+| 2.9 | [x] Functional testing — `tests/test_retrieval_functional.py`, 5 tests against a real 3-document corpus ingested through the actual Slice 1 pipeline: single-doc lookup, cross-document "why" reasoning, topic exploration, honest hedging on out-of-corpus questions, and a response-time sanity ceiling |
+| 2.10 | [x] Local deployment — `deploy/systemd/kb-fabric-query-api.service`, bound to `127.0.0.1:8000` only (deliberate, given authz is unenforced), enabled + verified live via real systemd (not manually foregrounded) |
+
+**Slice 2 (retrieval) implementation is now complete** — all 10 phases
+done, 84/84 tests passing (32 Slice 1 + 5 Slice 1 Phase 1.7 functional +
+47 new Slice 2), 4 real systemd services running
+(postgresql, redis, kb-fabric-celery-worker, kb-fabric-query-api), all
+`enabled` for reboot survival.
+
+### 8.1 Phase 2.0 config defaults (proposed + confirmed, 2026-08-20)
+
+| Setting | Value | Rationale |
+|---|---|---|
+| `VECTOR_TOP_N` | 20 | Candidates pulled from pgvector per query, pre-fusion. 20 is enough headroom for RRF to have real signal to fuse without over-fetching on a corpus this size (Slice 1 test corpus is tiny; revisit once real ingested volume exists). |
+| `KEYWORD_TOP_N` | 20 | Same rationale, symmetric with vector so neither engine structurally dominates RRF just by returning more candidates. |
+| `RRF_K` | 60 | Standard RRF constant from the original paper (Cormack et al.) and the most common default in production hybrid-search systems — no reason to deviate without data suggesting otherwise. |
+| `CONTEXT_MAX_CHUNKS` | 8 | Max chunks handed to answer-gen after arbitration. Matches this project's existing `CHUNK_SIZE=1000` chars (Slice 1) — 8 chunks is roughly 8000 chars of context, a reasonable grounding window without blowing the answer-gen prompt budget. |
+| `CONTEXT_MAX_TOKENS` | 4000 | Secondary/backstop budget alongside chunk count — whichever limit is hit first truncates the ranked list. Keeps the answer-gen prompt small and cheap, consistent with the user's stated preference for lean LLM calls. |
+
+All five are module-level config constants (same pattern as Slice 1's
+`EMBEDDING_DIM`/`CHUNK_SIZE`), not hardcoded inline, so they can be tuned
+without a code change once real usage data exists.
 
 This mirrors Slice 1's lifecycle exactly (analyze → design → plan →
 implement → unit test → functional test → deploy) but broken into smaller
@@ -267,3 +287,46 @@ in the implementation plan's "Next slice" section)
 
 No code written yet — this document is the design/plan step; implementation
 starts only after Phase 2.0's open decisions are confirmed.
+
+## 10. Operating the query API (Slice 2)
+
+```bash
+# --- Status ---
+sudo systemctl status kb-fabric-query-api --no-pager
+
+# --- Start / stop / restart ---
+sudo systemctl start kb-fabric-query-api
+sudo systemctl stop kb-fabric-query-api
+sudo systemctl restart kb-fabric-query-api
+
+# --- Logs ---
+sudo journalctl -u kb-fabric-query-api -f
+sudo journalctl -u kb-fabric-query-api --no-pager -n 100
+
+# --- Query it (localhost only -- see security note below) ---
+curl -X POST http://127.0.0.1:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "your question here"}'
+
+# --- Interactive API docs ---
+# http://127.0.0.1:8000/docs (Swagger UI, auto-generated by FastAPI)
+
+# --- Confirm reboot survival ---
+systemctl is-enabled postgresql redis kb-fabric-celery-worker kb-fabric-query-api
+```
+
+**Security note (read before changing the bind address):** the service is
+bound to `127.0.0.1:8000` only, deliberately — not `0.0.0.0`. This is a
+direct consequence of the Phase 2.0 decision to skip authz enforcement in
+Slice 2 (§2 above, HLD §19 item 9). Do not change the bind address to
+`0.0.0.0` or expose this port externally until real authz enforcement
+ships in a later slice — doing so would make an unauthenticated,
+unauthorized query endpoint reachable off-box.
+
+**Unit file source of truth:** `deploy/systemd/kb-fabric-query-api.service`
+in this repo. Redeploy after editing with:
+```bash
+sudo cp deploy/systemd/kb-fabric-query-api.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl restart kb-fabric-query-api
+```

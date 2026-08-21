@@ -487,3 +487,67 @@ system action or meaningful file/doc change, newest at the bottom.)*
   the sufficiency loop can't burn its budget re-running an identical
   failed search. Updated the phase breakdown (2.4-2.6, 2.8) to reference
   these typed contracts explicitly.
+
+- **[Slice 2 (retrieval) fully implemented, 2026-08-20/21 -- all 10
+  phases complete]** Per user's "you propose and implement" direction,
+  proposed and confirmed config defaults (VECTOR_TOP_N=20,
+  KEYWORD_TOP_N=20, RRF_K=60, CONTEXT_MAX_CHUNKS=8,
+  CONTEXT_MAX_TOKENS=4000 -- rationale in design doc section 8.1), then
+  implemented the full pipeline:
+  - Phase 2.1: pgvector query-side similarity search
+    (src/kb_fabric/retrieval/vector_search.py) -- 4 tests
+  - Phase 2.2: Postgres FTS keyword search + the authz_filter=None hook
+    per the Phase 2.0 authz-skip decision
+    (src/kb_fabric/retrieval/keyword_search.py) -- 5 tests
+  - Phase 2.3: RRF fusion (dedup by chunk_id, sum contributions across
+    engines) + arbitration (drop superseded documents, recency tie-break)
+    with the flat-authority-weight stub confirmed earlier
+    (src/kb_fabric/retrieval/fusion.py) -- 7 tests
+  - Phase 2.4: context assembly (chunk-count + token-estimate budget
+    truncation) + grounded answer generation via real LiteLLM chat calls,
+    with typed AnswerGenInput/PreviousAttempt contracts
+    (src/kb_fabric/retrieval/answer_gen.py) -- 7 tests
+  - Phase 2.5: query planner as a separate LLM call (engine routing +
+    reframing), live-verified resolving a pronoun ("it"/"that area") using
+    conversation history (src/kb_fabric/retrieval/query_planner.py) --
+    4 tests
+  - Phase 2.6: sufficiency check (coverage/groundedness JSON scoring) as a
+    separate LLM call + the bounded retry loop, live-verified correctly
+    discriminating a well-grounded answer (1.0/1.0, sufficient) from a
+    deliberately off-topic one (groundedness 0.0, insufficient, with
+    useful missing_aspects and suggested_refinement)
+    (src/kb_fabric/retrieval/sufficiency.py,
+    src/kb_fabric/retrieval/sufficiency_loop.py) -- 6 tests
+  - Phase 2.7: FastAPI /query endpoint wiring the whole pipeline together,
+    with the transparency block (incl. authorization: not_enforced_slice2)
+    and a startup-time authz warning log
+    (src/kb_fabric/retrieval/api.py) -- 5 tests, live-verified via real
+    HTTP requests (curl) against both a manually-run and (later) the real
+    systemd-managed service
+  - Phase 2.8: unit tests were written organically alongside each phase
+    above (42 new tests total for Slice 2), all against real DB/LLM
+    calls, no mocks -- same established pattern as Slice 1
+  - Phase 2.9: functional tests (tests/test_retrieval_functional.py) --
+    ingested a purpose-built 3-document corpus through the REAL Slice 1
+    capture pipeline (not synthetic ORM fixtures), then exercised 5
+    end-to-end scenarios matching the HLD's own example-question style:
+    single-document lookup, cross-document "why" reasoning (answer
+    genuinely spans two documents), topic exploration, and critically --
+    honest hedging on a question entirely outside the ingested corpus
+    (confirmed the system does not hallucinate a confident wrong answer)
+  - Phase 2.10: local deployment --
+    deploy/systemd/kb-fabric-query-api.service, deliberately bound to
+    127.0.0.1:8000 only (not 0.0.0.0) given authz is unenforced;
+    installed, enabled, verified live via real systemd (not a manually
+    foregrounded process, matching the Phase 1.7 verification standard);
+    confirmed clean restart and reboot survival (all 4 services --
+    postgresql, redis, kb-fabric-celery-worker, kb-fabric-query-api --
+    enabled)
+  Fixed one deprecation along the way: FastAPI's `@app.on_event("startup")`
+  is deprecated in the installed version -- switched to the modern
+  `lifespan` context-manager pattern before it became a maintenance debt.
+  Added fastapi==0.115.5 + uvicorn[standard]==0.32.1 to requirements.txt.
+  Final verification: full combined suite (Slice 1 + Slice 2) run twice
+  with both new systemd services running continuously in the background
+  -- 84/84 passed both times, zero DB row leakage confirmed via direct
+  psql count both before and after.

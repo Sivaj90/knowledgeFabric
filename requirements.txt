@@ -36,6 +36,10 @@ langchain-text-splitters==0.3.2
 # fix) works against the same httpx version.
 openai>=3.0.0
 
+# --- Query API (Slice 2, Phase 2.7) ---
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+
 # --- Testing ---
 pytest==8.3.3
 pytest-mock==3.14.0
