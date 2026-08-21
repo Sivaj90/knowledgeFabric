@@ -551,3 +551,33 @@ system action or meaningful file/doc change, newest at the bottom.)*
   with both new systemd services running continuously in the background
   -- 84/84 passed both times, zero DB row leakage confirmed via direct
   psql count both before and after.
+
+- **[Slice 3 (real RBAC/classification) scoping started, 2026-08-21]** Per
+  user request, started scoping the slice that closes the Slice 2
+  authz-not-enforced gap. Wrote
+  Landmark_Knowledgebase_Slice3_RBAC_Design.md, same analyze->design->plan
+  lifecycle, design/plan only, no implementation started. Key framing:
+  classification (HLD 7.2) and the real authz filter (HLD 8.1 step 2) are
+  scoped together in this one slice, not separately -- they are the same
+  mechanism from two ends (classification produces the values the filter
+  checks against). Covers: what's out of scope (real Azure AD SSO itself,
+  action_scopes/project_grants, LLM-assisted classification, an owner-
+  confirmation UI, real multi-user load testing), a flagged open decision
+  needing user confirmation before implementation (local auth
+  substitution -- proposed 3 options, recommended (a) a static
+  role-to-token config file, same "stub now, real later" pattern as every
+  prior slice's local substitutions), a real classifier design (rule-based
+  tier + function tags, effective_tier = max(rule, stubbed native-ACL
+  floor), pending_confirmation flag for Confidential+, re-classification
+  on document version update tying into Slice 1's Phase 1.6 versioning),
+  the concrete authz filter implementation (closes Slice 2's
+  NotImplementedError stub in build_authz_filter, plus fixes a real Slice
+  2 gap: vector_search never got an authz_filter parameter at all, only
+  keyword_search did), an 11-phase breakdown (3.0-3.10), and 5 explicitly
+  flagged risks (throwaway local-auth scaffolding, unvalidated
+  classification rules, the native-ACL stub meaning one HLD guarantee
+  isn't fully tested yet, no confirmation-blocking for Confidential+
+  content, and the need for genuinely multi-role functional tests rather
+  than a single-token test that would pass without proving anything).
+  Updated HLD section 19 item 9 to point forward to this new doc as the
+  closing slice, rather than leaving the open item dangling.
