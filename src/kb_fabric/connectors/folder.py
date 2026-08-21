@@ -22,8 +22,11 @@ SOURCE_SYSTEM = "local_folder"
 # Extensions Phase 1.4's Unstructured.io parse step will handle. The
 # connector itself doesn't parse — it just decides what counts as an
 # ingestible file — but filtering here keeps junk (.DS_Store, .gitkeep,
-# tmp files) out of the pipeline entirely.
-SUPPORTED_EXTENSIONS = {".docx", ".pdf", ".pptx", ".md", ".txt"}
+# tmp files) out of the pipeline entirely. .xlsx added 2026-08-21 when the
+# user pointed real R&D docs at data/raw/ including a tracker spreadsheet
+# -- requires the unstructured[xlsx] extra (openpyxl), added to
+# requirements.txt at the same time.
+SUPPORTED_EXTENSIONS = {".docx", ".pdf", ".pptx", ".md", ".txt", ".xlsx"}
 
 
 def compute_content_hash(path: Path) -> str:

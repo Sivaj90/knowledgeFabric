@@ -23,7 +23,10 @@ redis==5.1.1
 # mesa-libGL`; then `cannot import name 'PSSyntaxError'` -- fixed by
 # upgrading unstructured itself rather than hand-pinning pdfminer down,
 # which just traded one conflict for another with pdfplumber's own pin).
-unstructured[docx,pptx,pdf,md]==0.16.25
+# xlsx extra added 2026-08-21 when the user pointed real R&D docs
+# (including a tracker spreadsheet) at data/raw/ -- confirmed via a real
+# ImportError before this was added ("partition_xlsx() is not available").
+unstructured[docx,pptx,pdf,md,xlsx]==0.16.25
 langchain==0.3.7
 langchain-text-splitters==0.3.2
 

@@ -581,3 +581,47 @@ system action or meaningful file/doc change, newest at the bottom.)*
   than a single-token test that would pass without proving anything).
   Updated HLD section 19 item 9 to point forward to this new doc as the
   closing slice, rather than leaving the open item dangling.
+
+- **[Slice 3 deferred, 2026-08-21]** User confirmed: real authentication
+  is deferred until after the Azure AD app registration is done on the
+  Microsoft side. Slice 3 will resume with real Azure AD SSO at that
+  point, not a local substitution -- the local-auth-substitution decision
+  (section 2 of the Slice 3 design doc) is now moot and will not be built.
+  Added a status note (section 7) to Landmark_Knowledgebase_Slice3_RBAC_Design.md
+  recording this. Slice 2's /query endpoint continues running with
+  AUTHZ_ENFORCED=False -- still a correctly-tracked, loudly-surfaced gap
+  (HLD section 19 item 9), not silently abandoned, simply deprioritized.
+
+- **[Real-document ingestion + retrieval validation, 2026-08-21]** User's
+  actual current priority: validate that Slice 1 (ingestion) and Slice 2
+  (retrieval) genuinely work, not add more slices. User pointed real R&D
+  documents at data/raw/R&D Docs/ (2 PPTX decks + 1 duplicate, 1 XLSX
+  tracker, the production HLD as .md).
+  - **Real bug found + fixed (6th of this project): .xlsx unsupported.**
+    Neither the folder connector's SUPPORTED_EXTENSIONS nor
+    requirements.txt's unstructured extras covered .xlsx -- confirmed via
+    a real ImportError ("partition_xlsx() is not available") before
+    fixing. Added .xlsx to SUPPORTED_EXTENSIONS and
+    unstructured[docx,pptx,pdf,md,xlsx] to requirements.txt; verified the
+    real tracker spreadsheet parses cleanly (7 chunks, correct
+    task/owner/status data).
+  - Ingested all 5 real files through the real systemd Celery worker --
+    168 chunks across 7 documents total, verified via direct psql
+    inspection (real embeddings, readable extracted text).
+  - Ran several real queries against the real /query endpoint and the
+    real corpus: (1) an XLSX-grounded status query answered with exact,
+    correctly-cited tracker data; (2) a PPTX-grounded synthesis question
+    answered comprehensively across 8 chunks (coverage 0.95, groundedness
+    0.97); (3) a two-part question where the corpus only had an answer to
+    half of it -- **the sufficiency loop genuinely fired** (coverage 0.65,
+    below the 0.7 threshold, triggering a real second retrieval pass) and
+    the system **honestly reported it couldn't find team-size info**
+    rather than fabricating a number, while still answering the
+    ownership-structure half it could ground. First real (non-synthetic)
+    confirmation that the HLD 8.3a sufficiency mechanism behaves as
+    designed.
+  - Re-ran the full test suite after the .xlsx fix: 84/84 passing, DB
+    confirmed clean of test artifacts afterward (only the 7 real +
+    pre-existing documents remain).
+  - Conclusion recorded in the implementation plan: both ingestion and
+    retrieval are validated working correctly against real content.

@@ -234,3 +234,19 @@ This mirrors the Slice 1/Slice 2 phase-breakdown pattern.
 
 No code written yet — this is the design/plan step; implementation starts
 only after Phase 3.0's open decision is confirmed.
+
+## 7. Status update (2026-08-21): DEFERRED, not cancelled
+
+User confirmed: real authentication/authorization work is deferred until
+after the Azure AD app registration is completed on the Microsoft side —
+at that point Slice 3 resumes with the **real** Azure AD SSO integration,
+not the local substitution (option a/b/c in §2 above never gets built; §2
+existed only to unblock a **local** stand-in, which is now moot since real
+Azure AD is coming instead). Current priority, per user: validate that
+Slice 1 (ingestion) and Slice 2 (retrieval) actually work correctly end to
+end — "how are the documents being ingested and is it getting retrieved
+properly" — before adding more slices on top. Slice 2's `/query` endpoint
+therefore continues to run with `AUTHZ_ENFORCED=False` /
+`authorization: not_enforced_slice2` for the time being — this remains a
+correctly-tracked, loudly-surfaced gap (HLD §19 item 9), not a silently
+abandoned one; it is simply not next in the work queue.

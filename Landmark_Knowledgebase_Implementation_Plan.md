@@ -429,6 +429,59 @@ directory (`readlink -f .venv/bin/python3.11` to find the real path).
 - [ ] Retain `data/processed/` intermediate artifacts or treat as ephemeral?
 - [ ] Concrete chunk size/overlap default (HLD doesn't pin numbers)
 
+## Ingestion + retrieval validation against real documents (2026-08-21)
+
+User provided real R&D documents at `data/raw/R&D Docs/` (2 PPTX decks, 1
+PPTX read-only duplicate, 1 XLSX tracker, the production HLD as .md) to
+validate the actual, current behavior of Slice 1 (ingestion) + Slice 2
+(retrieval) — deferring Slice 3 (auth) until after the real Azure AD app
+registration is done on the Microsoft side (see
+`Landmark_Knowledgebase_Slice3_RBAC_Design.md` §7 status note).
+
+**Real bug found + fixed (6th of this project): `.xlsx` was not a
+supported file type.** The folder connector's `SUPPORTED_EXTENSIONS` never
+included `.xlsx`, and even once added, `unstructured`'s xlsx partitioner
+raised `ImportError: partition_xlsx() is not available` — missing the
+`unstructured[xlsx]` extra (openpyxl). Fixed both:
+`connectors/folder.py`'s `SUPPORTED_EXTENSIONS` now includes `.xlsx`;
+`requirements.txt` now installs `unstructured[docx,pptx,pdf,md,xlsx]`.
+Verified live: the tracker spreadsheet parses cleanly (7 chunks, real
+task/status/owner data extracted correctly, one harmless "Data Validation
+extension not supported" warning from openpyxl).
+
+**Live ingestion verification:** all 5 real files enqueued and processed
+through the real systemd Celery worker — 2 PPTX decks (10 + 19 chunks),
+1 PPTX (18 chunks), 1 XLSX (7 chunks), 1 large .md (the HLD itself, 112
+chunks) — 168 chunks total across 7 documents (5 real + 2 pre-existing
+Slice 2 test docs), confirmed via direct psql inspection of both
+`documents` and `chunks` tables, with real embeddings and readable
+extracted text sampled directly from the DB.
+
+**Live retrieval quality verification — several real queries against this
+real corpus, via the real `/query` endpoint:**
+1. *"What is the status of the Enterprise License discussions for
+   Anthropic and Gemini?"* — correctly pulled the exact tracker rows
+   (dates, owners, status) from the XLSX, cited accurately.
+2. *"What does the R&D team want to achieve with AI adoption according to
+   HOD Connect?"* — a genuinely comprehensive, well-cited synthesis
+   across 8 chunks from the PPTX deck (coverage 0.95, groundedness 0.97).
+3. *"How many people are on the R&D team and what is the ownership
+   structure of tasks in the tracker?"* — **the sufficiency loop actually
+   fired** (coverage 0.65 on the first pass, below the 0.7 threshold,
+   triggering a real second retrieval pass) and the system **honestly
+   reported it could not find team-size information** rather than
+   inventing a number, while still answering the ownership-structure half
+   of the question it could ground. This is the sufficiency mechanism
+   (HLD §8.3a) working exactly as designed against real, non-synthetic
+   data for the first time.
+
+**Conclusion: both ingestion and retrieval are working correctly against
+real content** — real file-type parsing (including the newly-fixed xlsx
+path), real cross-document/cross-format retrieval, and real honest
+hedging when the corpus doesn't contain an answer. Full test suite
+re-run after the `.xlsx` fix: 84/84 passing, DB confirmed clean of test
+artifacts (only the 7 real+pre-existing documents remain).
+
 ## Next slice — scoping started 2026-08-20
 
 Slice 1 (capture) is complete (Phases 1.0–1.7). Slice 2 = retrieval, per
