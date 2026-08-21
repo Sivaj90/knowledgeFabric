@@ -463,3 +463,27 @@ system action or meaningful file/doc change, newest at the bottom.)*
   the Slice 2 design doc: query planner, answer generation, and
   sufficiency check are specified as three separate, focused LLM calls
   rather than one combined call.
+
+- **[Slice 2 open decisions confirmed by user, 2026-08-20]** (1) Authz
+  enforcement: SKIP entirely for Slice 2 (option "b" from the two flagged
+  choices) -- not deferred silently, tracked as a standing, loud open item
+  with explicit guardrails: every /query response carries an
+  `authorization: not_enforced_slice2` field, the service logs a startup
+  warning, and the item is recorded in both the Slice 2 design doc §2 and
+  HLD §19 item 9 so it cannot be silently carried into a multi-user
+  deployment or forgotten before real RBAC ships. (2) Source-authority
+  weighting for RRF: confirmed stub (flat weight for all chunks), same
+  "no-op now, real value later" pattern as Slice 1's classification tier.
+- **[user follow-up: don't lose information across split LLM calls]** User
+  explicitly flagged the risk that splitting the pipeline into separate,
+  lean LLM calls (per their stated preference) could drop context each
+  call actually needs. Added Slice 2 design doc §6.1 addressing this
+  directly: an explicit table of what each of the three calls (query
+  planner, answer-gen, sufficiency check) needs vs. must not need, a
+  concrete mechanism (typed input schemas per call, same pattern as
+  Slice 1's DocumentEnvelope contract) so nothing is passed implicitly,
+  and specific handling for the retry case (retry answer-gen gets the
+  previous attempt's full context + missing_aspects, not a blank slate) so
+  the sufficiency loop can't burn its budget re-running an identical
+  failed search. Updated the phase breakdown (2.4-2.6, 2.8) to reference
+  these typed contracts explicitly.
